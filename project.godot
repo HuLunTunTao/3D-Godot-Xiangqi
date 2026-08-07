@@ -25,7 +25,7 @@ window/stretch/aspect="expand"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/godot_test_bridge/plugin.cfg", "res://addons/gut/plugin.cfg")
+enabled=PackedStringArray("res://addons/godot_test_bridge/plugin.cfg", "res://addons/gut/plugin.cfg", "res://addons/pikafish/plugin.cfg")
 
 [physics]
 
@@ -35,3 +35,4 @@ enabled=PackedStringArray("res://addons/godot_test_bridge/plugin.cfg", "res://ad
 
 rendering_device/driver.windows="d3d12"
 renderer/rendering_method="mobile"
+textures/vram_compression/import_etc2_astc=true

@@ -1,3 +1,11 @@
 # Godot 4+ specific ignores
 .godot/
 /android/
+
+# regenerable weight/tables/reference data (tools/*.py)
+data/
+__pycache__/
+
+# AGENTS
+AGENTS.md
+CLAUDE.md
