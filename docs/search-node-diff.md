@@ -26,6 +26,6 @@ Godot --headless --path . -s res://src/test/diff_search_nodes.gd
 | 最佳着精确一致 | 6 / 8 |
 | CP 分数精确一致 | 0 / 8 |
 
-分数不一致是预期的、可行动的信号：当前优先检查 NNUE 原始输出到官方
-`Eval::evaluate` 最终分数之间的包装语义，以及根部 aspiration / TT / score 传播；
+分数不一致是预期的、可行动的信号：`score cp` 在官方 UCI 中实际承载内部
+`Value`，因此可直接比较；当前优先检查根部 aspiration、TT 与搜索顺序差异，
 不要据此直接开启更多剪枝开关。每次移植一项上游逻辑后复跑并记录这些指标。

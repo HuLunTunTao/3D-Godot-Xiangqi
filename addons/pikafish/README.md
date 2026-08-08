@@ -107,6 +107,9 @@ engine.start_search({"movetime_ms": 1200})
 engine.stop_search()
 ```
 
+`result.score` 与 `search_info.score` 对齐官方 Pikafish 的 UCI `score cp`：
+它是引擎内部 `Value`，不是 `eval` trace 使用 WDL 模型换算后的人类展示分。
+
 Dictionary and `PikafishSearchLimits` both accept: `movetime_ms` (or `movetime`),
 `wtime`/`btime`, `winc`/`binc`, `movestogo`, `depth`, `nodes`, `infinite`,
 `ponder`, `sync`.

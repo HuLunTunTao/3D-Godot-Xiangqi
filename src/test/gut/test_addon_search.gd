@@ -10,6 +10,8 @@ const Attacks = preload("res://addons/pikafish/core/attacks.gd")
 const Zobrist = preload("res://addons/pikafish/core/zobrist.gd")
 const Bitboard = preload("res://addons/pikafish/core/bitboard.gd")
 const Config = preload("res://addons/pikafish/config.gd")
+const RootMove = preload("res://addons/pikafish/search/root_move.gd")
+const NnueEvaluator = preload("res://addons/pikafish/search/nnue_evaluator.gd")
 
 const START_FEN := "rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR w - - 0 1"
 
@@ -83,6 +85,59 @@ func test_search_depth_2_to_4_nodes_increase() -> void:
 		assert_gt(e._last_result.nodes, 0)
 		prev_depth = e._last_result.depth
 	e.shutdown()
+
+
+func test_search_returns_complete_legal_pv_and_ponder() -> void:
+	var e = Eng.new()
+	assert_eq(e.initialize(), OK)
+	assert_eq(e.set_fen(START_FEN), OK)
+	assert_eq(e.start_search({"depth": 3, "sync": true}), OK)
+	var result = e._last_result
+	assert_gt(result.pv.size(), 0)
+	assert_eq(result.pv[0], result.bestmove)
+	var replay = Position.new()
+	assert_eq(replay.set_fen(START_FEN), OK)
+	for move in result.pv:
+		assert_true(replay.legal(move), "PV move must be legal")
+		replay.do_move(move)
+	if result.pv.size() > 1:
+		assert_eq(result.ponder, result.pv[1])
+	else:
+		assert_eq(result.ponder, Types.MOVE_NONE)
+	e.shutdown()
+
+
+func test_root_move_sort_is_stable_for_equal_scores() -> void:
+	var w = Worker.new()
+	var first = RootMove.new(10)
+	var second = RootMove.new(20)
+	var third = RootMove.new(30)
+	first.score = 5
+	second.score = 5
+	third.score = 8
+	w.root_moves = [first, second, third]
+	w._stable_sort_root_moves()
+	assert_eq(w.root_moves[0].move(), 30)
+	assert_eq(w.root_moves[1].move(), 10)
+	assert_eq(w.root_moves[2].move(), 20)
+
+
+func test_nnue_final_wrapper_applies_upstream_complexity_material_and_rule60() -> void:
+	var pos = Position.new()
+	assert_eq(pos.set_fen(START_FEN), OK)
+	var psqt := 400
+	var positional := -100
+	var optimism := 20
+	var complexity := absi(psqt - positional)
+	var nnue := psqt + positional
+	var expected_optimism := optimism + optimism * complexity / 465
+	nnue -= nnue * complexity / 11743
+	var expected := (nnue * (17380 + pos.major_material()) + expected_optimism * (3061 + pos.major_material())) / 20582
+	expected -= expected * pos.rule60_count() / 253
+	expected = clampi(expected, Types.VALUE_MATED_IN_MAX_PLY + 1, Types.VALUE_MATE_IN_MAX_PLY - 1)
+	assert_eq(NnueEvaluator.finalize_terms(pos, psqt, positional, optimism), expected)
+	assert_eq(NnueEvaluator.finalize_terms(pos, -999999, -999999, 0), Types.VALUE_MATED_IN_MAX_PLY + 1)
+	assert_eq(NnueEvaluator.finalize_terms(pos, 999999, 999999, 0), Types.VALUE_MATE_IN_MAX_PLY - 1)
 
 
 func test_facade_legal_moves_count() -> void:
