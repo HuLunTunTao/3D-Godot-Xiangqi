@@ -1,0 +1,7 @@
+Neural network weights derived from pikafish.nnue / Pika Xiangqi Zero
+training data are subject to the Open Database License (ODbL).
+
+See: https://opendatacommons.org/licenses/odbl/odbl-10.txt
+
+Redistribution of the weight database (or derivatives) requires
+attribution and share-alike obligations under ODbL.

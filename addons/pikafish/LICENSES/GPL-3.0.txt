@@ -1,0 +1,3 @@
+This addon’s engine source is licensed under GNU GPL v3.
+See the repository root Copying.txt for the full license text
+(identical to upstream Pikafish Copying.txt).
