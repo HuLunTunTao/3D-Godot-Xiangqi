@@ -21,6 +21,9 @@
 
 头烟测试:`Godot --headless --path . -s res://tools/smoke_addon_headless.gd`(期望 `SMOKE_PASS`)。
 
+真机/桌面交互验收场景会显示运行时设备、后端、当前阶段、进度和滚动日志；详情及 JSON
+报告位置见 [设备测试仪表盘](docs/device-test-dashboard.md)。
+
 ## 项目结构
 
 ```

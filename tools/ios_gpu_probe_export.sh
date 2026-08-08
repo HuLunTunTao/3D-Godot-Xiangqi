@@ -48,16 +48,6 @@ if ignore.exists():
 print("project.godot patched for 4.6.1")
 PY
 
-# Minimal main scene that runs the probe script
-cat > "$TMP/src/test/mobile_gpu_probe.tscn" <<'EOF'
-[gd_scene load_steps=2 format=3]
-
-[ext_resource type="Script" path="res://src/test/run_mobile_gpu_probe.gd" id="1"]
-
-[node name="MobileGpuProbe" type="Node"]
-script = ExtResource("1")
-EOF
-
 python3 - <<'PY' "$TMP"
 import pathlib, sys
 root = pathlib.Path(sys.argv[1])

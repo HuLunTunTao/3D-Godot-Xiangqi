@@ -7,27 +7,39 @@ extends Node
 const Eng = preload("res://addons/pikafish/pikafish.gd")
 const Config = preload("res://addons/pikafish/config.gd")
 const Types = preload("res://addons/pikafish/core/types.gd")
+const Reporter = preload("res://src/test/ui/test_reporter.gd")
+const Dashboard = preload("res://src/test/ui/test_dashboard.gd")
 
 const START := "rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR w - - 0 1"
 const RESULT_PATH := "user://search_time_result.json"
 const STOP_CYCLES := 100
 const MOVETIME_BUDGETS := [300, 1200, 2000]
+## Render only four times during this latency-sensitive loop. More frequent UI frames
+## perturb the very stop latency the acceptance test is measuring.
+const STOP_UI_CHUNK := 25
 
 var _out: Dictionary = {}
 var _engine
 var _failures := 0
+var _reporter
 
 
 func _ready() -> void:
+	_reporter = Reporter.new("Mobile search acceptance")
+	var dashboard = Dashboard.new()
+	add_child(dashboard)
+	dashboard.bind(_reporter)
 	call_deferred("_run")
 
 
 func _fail(msg: String) -> void:
 	_failures += 1
 	printerr("SEARCH_TIME_FAIL: %s" % msg)
+	_reporter.report_log(msg, "FAIL")
 
 
 func _run() -> void:
+	_reporter.stage("Loading material search backend")
 	_out = {
 		"marker": "SEARCH_TIME_RUNNING",
 		"godot": Engine.get_version_info(),
@@ -44,12 +56,14 @@ func _run() -> void:
 		_finish(false)
 		return
 	_out["backend"] = _engine.backend_info()
+	_reporter.metric("backend", _out["backend"].get("backend", "unknown"))
+	_reporter.metric("canary", _out["backend"].get("canary_ok", false))
 	if _engine.set_fen(START) != OK:
 		_fail("set_fen")
 		_finish(false)
 		return
 
-	_out["material"] = _bench_leaf(false)
+	_out["material"] = await _bench_leaf(false)
 	# Re-init for NNUE leaf path.
 	_engine.shutdown()
 	_engine = Eng.new()
@@ -60,7 +74,8 @@ func _run() -> void:
 		_fail("initialize nnue")
 		_finish(false)
 		return
-	_out["nnue"] = _bench_leaf(true)
+	_reporter.stage("Loading incremental NNUE search backend")
+	_out["nnue"] = await _bench_leaf(true)
 
 	_out["failures"] = _failures
 	_out["marker"] = "SEARCH_TIME_PASS" if _failures == 0 else "SEARCH_TIME_FAIL"
@@ -78,7 +93,9 @@ func _bench_leaf(use_nnue: bool) -> Dictionary:
 		_fail("set_fen leaf")
 		return section
 
-	for budget in MOVETIME_BUDGETS:
+	_reporter.stage("%s timed search" % ("NNUE" if use_nnue else "Material"), MOVETIME_BUDGETS.size())
+	for index in range(MOVETIME_BUDGETS.size()):
+		var budget = MOVETIME_BUDGETS[index]
 		if _engine.set_fen(START) != OK:
 			_fail("set_fen movetime")
 			continue
@@ -103,8 +120,14 @@ func _bench_leaf(use_nnue: bool) -> Dictionary:
 			"reason": res.stop_reason,
 			"from_complete": res.from_complete_iteration,
 		})
+		_reporter.progress(index + 1, MOVETIME_BUDGETS.size(), "%d ms · depth %d · %d nps" % [budget, res.completed_depth, res.nps])
+		_reporter.metric("%s_depth" % ("nnue" if use_nnue else "material"), res.completed_depth)
+		_reporter.metric("%s_nps" % ("nnue" if use_nnue else "material"), res.nps)
+		_reporter.report_log("%s %dms: depth=%d nodes=%d nps=%d" % ["NNUE" if use_nnue else "Material", budget, res.completed_depth, res.nodes, res.nps])
+		await get_tree().process_frame
 
 	# Async start/stop stress
+	_reporter.stage("%s async stop stress" % ("NNUE" if use_nnue else "Material"), STOP_CYCLES)
 	var stop_samples: PackedInt32Array = PackedInt32Array()
 	var illegal := 0
 	for i in range(STOP_CYCLES):
@@ -125,6 +148,9 @@ func _bench_leaf(use_nnue: bool) -> Dictionary:
 		var res2 = _engine._last_result
 		if res2 == null or not Types.move_is_ok(res2.bestmove) or not _engine.is_legal(res2.bestmove):
 			illegal += 1
+		if i % STOP_UI_CHUNK == STOP_UI_CHUNK - 1 or i + 1 == STOP_CYCLES:
+			_reporter.progress(i + 1, STOP_CYCLES, "illegal results: %d" % illegal)
+			await get_tree().process_frame
 	stop_samples.sort()
 	var p50 := 0
 	var p95 := 0
@@ -141,6 +167,8 @@ func _bench_leaf(use_nnue: bool) -> Dictionary:
 		_fail("stop p95=%d > 50 (%s)" % [p95, "nnue" if use_nnue else "material"])
 	if illegal > 0:
 		_fail("illegal bestmoves=%d" % illegal)
+	_reporter.metric("%s_stop_p95_ms" % ("nnue" if use_nnue else "material"), p95)
+	_reporter.report_log("%s stop: p50=%dms p95=%dms illegal=%d" % ["NNUE" if use_nnue else "Material", p50, p95, illegal])
 	return section
 
 
@@ -149,10 +177,13 @@ func _finish(ok: bool) -> void:
 	if not ok:
 		_out["marker"] = "SEARCH_TIME_FAIL"
 	var f := FileAccess.open(RESULT_PATH, FileAccess.WRITE)
+	_out["environment"] = _reporter.environment
 	if f != null:
 		f.store_string(JSON.stringify(_out, "\t"))
 		f.close()
 	print(_out.get("marker", "?"))
-	# Keep process alive briefly so Documents flush is visible to host copy.
-	await get_tree().create_timer(0.5).timeout
-	get_tree().quit(0 if ok else 1)
+	_reporter.finish(ok, str(_out.get("marker", "?")))
+	_reporter.report_log("report saved: %s" % RESULT_PATH)
+	if OS.get_cmdline_user_args().has("--auto-quit"):
+		await get_tree().create_timer(0.5).timeout
+		get_tree().quit(0 if ok else 1)

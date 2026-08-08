@@ -11,11 +11,22 @@ const XRefInference = preload("res://addons/pikafish/nnue/cpu_inference.gd")
 const XBoard = preload("res://addons/pikafish/nnue/board.gd")
 const PikafishEngineScript = preload("res://addons/pikafish/pikafish.gd")
 const PikafishConfigScript = preload("res://addons/pikafish/config.gd")
+const Reporter = preload("res://src/test/ui/test_reporter.gd")
+const Dashboard = preload("res://src/test/ui/test_dashboard.gd")
 
 const RESULT_PATH := "user://gpu_probe_result.json"
 
 
 func _ready() -> void:
+	_reporter = Reporter.new("Mobile GPU diagnostic")
+	var dashboard = Dashboard.new()
+	add_child(dashboard)
+	dashboard.bind(_reporter)
+	call_deferred("_run")
+
+
+func _run() -> void:
+	_reporter.stage("Loading NNUE weights")
 	var result := {
 		"device": OS.get_model_name(),
 		"os": OS.get_version(),
@@ -30,8 +41,10 @@ func _ready() -> void:
 	result["ft_threat_w_bytes"] = loader.ft_threat_w.size() if loader.loaded else 0
 	result["ft_psq_w_bytes"] = loader.ft_psq_w.size() if loader.loaded else 0
 	if load_err != OK:
+		_reporter.report_log("NNUE load failed: %s" % loader.load_error, "FAIL")
 		_finish(result, false)
 		return
+	_reporter.metric("network_dir", loader.network_dir)
 
 	var features := XFeatures.new(loader)
 	var cpu := XRefInference.new(loader, features)
@@ -49,6 +62,7 @@ func _ready() -> void:
 
 	# Facade/canary path (production selection)
 	var engine = PikafishEngineScript.new()
+	_reporter.stage("Production backend and GPU canary")
 	var cfg = PikafishConfigScript.new()
 	cfg.network_dir = "res://data"
 	cfg.prefer_gpu = true
@@ -56,15 +70,20 @@ func _ready() -> void:
 	var init_err: Error = engine.initialize(cfg)
 	result["facade_init_ok"] = init_err == OK
 	result["facade_backend"] = engine.backend_info()
+	_reporter.metric("facade_backend", result["facade_backend"].get("backend", "unknown"))
+	_reporter.metric("canary", result["facade_backend"].get("canary_ok", false))
+	_reporter.report_log("facade backend=%s canary=%s" % [result["facade_backend"].get("backend", "unknown"), result["facade_backend"].get("canary_ok", false)])
 
 	# Forced GPU construction (diagnostic — ignore canary)
 	var gpu = XGpuInference.try_create(loader, features)
 	result["gpu_construct_ok"] = gpu != null and gpu.ready
 	if gpu == null or not gpu.ready:
+		_reporter.report_log("forced GPU unavailable; validating CPU fallback", "WARN")
 		result["forced_gpu"] = {"skipped": true, "reason": "try_create failed"}
 		engine.shutdown()
 		_finish(result, result["facade_backend"].get("backend", "") == "cpu")
 		return
+	_reporter.stage("Forced GPU oracle", records.size())
 	result["minimal_compute_probe"] = _minimal_compute_probe(gpu)
 	result["empty_output_compute_probe"] = _empty_output_compute_probe(gpu)
 	result["shader_load_probe"] = _shader_load_probe()
@@ -95,6 +114,10 @@ func _ready() -> void:
 		"sample_cpu": Array(cpu_vals).slice(0, mini(5, cpu_vals.size())),
 		"sample_exp": Array(expected).slice(0, mini(5, expected.size())),
 	}
+	_reporter.progress(records.size(), records.size(), "oracle mismatches: %d" % sync_bad)
+	_reporter.metric("forced_gpu_eval_s", "%.0f" % result["forced_gpu"]["eval_s"])
+	_reporter.metric("forced_gpu_oracle_bad", sync_bad)
+	_reporter.report_log("forced GPU oracle: bad=%d eval/s=%.0f" % [sync_bad, result["forced_gpu"]["eval_s"]])
 
 	# Split batch stages for iOS diagnosis. `evaluate_batch()` has already filled
 	# b_acc_buf and b_out_buf: a non-zero accumulator proves uploads, bindings and
@@ -135,8 +158,12 @@ func _ready() -> void:
 		var reps := 100
 		var bad100 := 0
 		var t0 := Time.get_ticks_usec()
-		for _i in range(reps):
+		_reporter.stage("Forced GPU 100× oracle batch", reps)
+		for rep in range(reps):
 			bad100 += _count_bad(gpu.evaluate_batch(boards), expected)
+			if rep % 5 == 4 or rep + 1 == reps:
+				_reporter.progress(rep + 1, reps, "oracle mismatches: %d" % bad100)
+				await get_tree().process_frame
 		var ms100 := float(Time.get_ticks_usec() - t0) / 1000.0
 		result["forced_gpu_100x23"] = {
 			"bad": bad100,
@@ -165,6 +192,7 @@ func _ready() -> void:
 	_async_bad = 0
 	_callback_order.clear()
 	_async_started_us = Time.get_ticks_usec()
+	_reporter.stage("Production async three-slot batch", 100)
 	_fill_async_slots()
 
 
@@ -177,6 +205,7 @@ var _async_done := 0
 var _async_bad := 0
 var _async_started_us := 0
 var _callback_order: Array[int] = []
+var _reporter
 
 
 func _fill_async_slots() -> void:
@@ -200,6 +229,7 @@ func _on_async_batch(batch_result: PackedInt32Array, request_id: int) -> void:
 	_callback_order.append(request_id)
 	_async_bad += _count_bad(batch_result, _probe_expected)
 	_async_done += 1
+	_reporter.progress(_async_done, 100, "oracle mismatches: %d" % _async_bad)
 	if _async_done < 100:
 		_fill_async_slots()
 		return
@@ -216,6 +246,9 @@ func _on_async_batch(batch_result: PackedInt32Array, request_id: int) -> void:
 		"ms": async_ms,
 		"backend": _probe_engine.backend_info().get("backend", ""),
 	}
+	_reporter.metric("async_eval_s", "%.0f" % _probe_result["forced_gpu_async_100x23"]["eval_s"])
+	_reporter.metric("async_oracle_bad", _async_bad)
+	_reporter.report_log("async batch: bad=%d ordered=%s eval/s=%.0f" % [_async_bad, ordered, _probe_result["forced_gpu_async_100x23"]["eval_s"]])
 	var ok: bool = (
 		_async_bad == 0
 		and ordered
@@ -238,15 +271,20 @@ func _count_bad(got: PackedInt32Array, expected: PackedInt32Array) -> int:
 func _finish(result: Dictionary, ok: bool) -> void:
 	result["ok"] = ok
 	result["marker"] = "GPU_PROBE_PASS" if ok else "GPU_PROBE_FAIL"
+	result["environment"] = _reporter.environment if _reporter != null else {}
 	var f := FileAccess.open(RESULT_PATH, FileAccess.WRITE)
 	if f != null:
 		f.store_string(JSON.stringify(result, "\t"))
 		f.close()
 	print(result["marker"])
 	print(JSON.stringify(result))
-	# Give filesystem a tick on iOS before quit.
-	await get_tree().create_timer(0.5).timeout
-	get_tree().quit(0 if ok else 1)
+	if _reporter != null:
+		_reporter.finish(ok, result["marker"])
+		_reporter.report_log("report saved: %s" % RESULT_PATH)
+	if OS.get_cmdline_user_args().has("--auto-quit"):
+		# Give filesystem a tick on iOS before quit.
+		await get_tree().create_timer(0.5).timeout
+		get_tree().quit(0 if ok else 1)
 
 
 static func _load_reference() -> Array:
