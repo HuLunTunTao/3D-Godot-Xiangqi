@@ -22,6 +22,13 @@ static func _i8(arr: PackedByteArray, idx: int) -> int:
 
 
 func evaluate(pos: XBoard) -> int:
+	var terms: Dictionary = evaluate_terms(pos)
+	return int(terms["nnue_total"])
+
+
+## Raw Network::evaluate components. This deliberately does not apply the
+## search-only Eval::evaluate scaling wrapper.
+func evaluate_terms(pos: XBoard) -> Dictionary:
 	var stm := pos.side_to_move()
 	var perspectives := [stm, C.flip_color(stm)]
 	var lbucket := features.make_layer_stack_bucket(pos)
@@ -142,7 +149,13 @@ func evaluate(pos: XBoard) -> int:
 	var fwd_out := y2 + (y0[30] - y0[31])
 	var positional := (fwd_out * 9600) / 16384
 
-	return (psqt_val / 16) + (positional / 16)
+	var psqt: int = psqt_val / 16
+	var positional_scaled: int = positional / 16
+	return {
+		"psqt": psqt,
+		"positional": positional_scaled,
+		"nnue_total": psqt + positional_scaled,
+	}
 
 
 func evaluate_batch(positions: Array) -> PackedInt32Array:

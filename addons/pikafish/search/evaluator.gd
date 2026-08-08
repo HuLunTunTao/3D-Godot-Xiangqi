@@ -27,6 +27,12 @@ func undo_null_move() -> void:
 	pass
 
 
+## Upstream Eval::evaluate receives a root-side optimism value.  Keeping the
+## hook on the strategy makes the search independent from a concrete evaluator.
+func set_optimism(_white: int, _black: int) -> void:
+	pass
+
+
 func evaluate(_position) -> int:
 	return 0
 

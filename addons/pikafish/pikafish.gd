@@ -668,6 +668,7 @@ func _finish_search(raw: Dictionary, gen: int) -> void:
 	_last_result.score = int(raw.get("score", 0))
 	_last_result.nodes = int(raw.get("nodes", 0))
 	_last_result.pv = raw.get("pv", PackedInt32Array())
+	_last_result.ponder = _last_result.pv[1] if _last_result.pv.size() > 1 else Types.MOVE_NONE
 	_last_result.depth = int(raw.get("depth", raw.get("completed_depth", 0)))
 	_last_result.completed_depth = int(raw.get("completed_depth", _last_result.depth))
 	_last_result.requested_depth = int(raw.get("requested_depth", 0))

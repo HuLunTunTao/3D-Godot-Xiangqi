@@ -214,12 +214,26 @@ func undo_update(frame: Dictionary) -> void:
 
 
 func evaluate(pos: XBoard) -> int:
+	var terms: Dictionary = evaluate_terms(pos)
+	return int(terms["nnue_total"])
+
+
+## Same units as Eval::NNUE::Network::evaluate(): each component has already
+## been divided by OutputScale. Search consumes the components separately in
+## order to apply upstream Eval::evaluate; public inference keeps total only.
+func evaluate_terms(pos: XBoard) -> Dictionary:
 	if not computed:
 		refresh(pos)
 	var lbucket := features.make_layer_stack_bucket(pos)
 	var psqt_val: int = (psqt0[lbucket] - psqt1[lbucket]) / 2
 	var positional := _forward_cpu(lbucket)
-	return (psqt_val / 16) + (positional / 16)
+	var psqt: int = psqt_val / 16
+	var positional_scaled: int = positional / 16
+	return {
+		"psqt": psqt,
+		"positional": positional_scaled,
+		"nnue_total": psqt + positional_scaled,
+	}
 
 
 func snapshot() -> Dictionary:

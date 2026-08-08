@@ -13,6 +13,7 @@ var _features
 var _board = null
 var _accumulator = null
 var _undo_frames: Array = []
+var _optimism := PackedInt32Array([0, 0])
 
 
 func _init(loader, features) -> void:
@@ -26,6 +27,7 @@ func begin(position) -> void:
 	_accumulator = NnueAccumulator.new(_loader, _features)
 	_accumulator.refresh(_board)
 	_undo_frames.clear()
+	_optimism.fill(0)
 
 
 func do_move(move: int) -> void:
@@ -60,10 +62,33 @@ func undo_null_move() -> void:
 	undo_move()
 
 
-func evaluate(_position) -> int:
+func set_optimism(white: int, black: int) -> void:
+	_optimism[0] = white
+	_optimism[1] = black
+
+
+func evaluate(position) -> int:
 	if _board == null or _accumulator == null:
 		return 0
-	return int(_accumulator.evaluate(_board))
+	var terms: Dictionary = _accumulator.evaluate_terms(_board)
+	var psqt: int = int(terms["psqt"])
+	var positional: int = int(terms["positional"])
+	return finalize_terms(position, psqt, positional, _optimism[position.side_to_move])
+
+
+## Kept separately so upstream evaluate.cpp arithmetic is directly testable
+## without creating a neural network or mutating an accumulator.
+static func finalize_terms(position, psqt: int, positional: int, optimism: int) -> int:
+	var nnue: int = psqt + positional
+	var complexity: int = absi(psqt - positional)
+	# Upstream evaluate.cpp. GDScript integer division truncates toward zero,
+	# matching C++ signed integral division for these terms.
+	optimism += optimism * complexity / 465
+	nnue -= nnue * complexity / 11743
+	var material: int = position.major_material()
+	var value: int = (nnue * (17380 + material) + optimism * (3061 + material)) / 20582
+	value -= value * position.rule60_count() / 253
+	return clampi(value, T.VALUE_MATED_IN_MAX_PLY + 1, T.VALUE_MATE_IN_MAX_PLY - 1)
 
 
 func dispose() -> void:

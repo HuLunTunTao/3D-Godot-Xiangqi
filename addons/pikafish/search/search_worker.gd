@@ -12,6 +12,7 @@ const MP = preload("res://addons/pikafish/search/move_picker.gd")
 const Reductions = preload("res://addons/pikafish/search/reductions.gd")
 const TimeMan = preload("res://addons/pikafish/search/time_manager.gd")
 const MaterialEvaluator = preload("res://addons/pikafish/search/material_evaluator.gd")
+const RootMove = preload("res://addons/pikafish/search/root_move.gd")
 
 const NODE_NON_PV := 0
 const NODE_PV := 1
@@ -54,6 +55,8 @@ var _stop_reason: String = ""
 ## Root-only work statistics consumed by TimeManager after each completed ID step.
 var _root_effort_by_move: Dictionary = {}
 var _root_best_move_changes: int = 0
+var root_moves: Array = []  ## Array[PikafishRootMove], stable across ID iterations.
+var _pv_stack: Array = []  ## Array[PackedInt32Array], indexed by search ply.
 
 ## Search stack SoA — continuation bases / currentMove / inCheck (Upstream Stack).
 var ss_cont_base: PackedInt32Array = PackedInt32Array()
@@ -86,6 +89,33 @@ func _init_search_stack() -> void:
 	ss_cont_base.fill(sent)
 	ss_current_move.fill(T.MOVE_NONE)
 	ss_in_check.fill(0)
+	_pv_stack.clear()
+	_pv_stack.resize(SS_SIZE)
+	for i in range(SS_SIZE):
+		_pv_stack[i] = PackedInt32Array()
+
+
+func _init_root_moves() -> void:
+	root_moves.clear()
+	if pos == null:
+		return
+	var legal := PackedInt32Array()
+	legal.resize(T.MAX_MOVES)
+	var count: int = MG.generate(pos, MG.GEN_LEGAL, legal)
+	for i in range(count):
+		root_moves.append(RootMove.new(legal[i]))
+
+
+func _stable_sort_root_moves() -> void:
+	# Insertion sort is stable, allocation-free for this tiny list, and preserves
+	# upstream's invariant that equal non-PV root moves retain their old order.
+	for i in range(1, root_moves.size()):
+		var candidate = root_moves[i]
+		var j := i - 1
+		while j >= 0 and int(root_moves[j].score) < int(candidate.score):
+			root_moves[j + 1] = root_moves[j]
+			j -= 1
+		root_moves[j + 1] = candidate
 
 
 func _ss(ply: int) -> int:
@@ -139,6 +169,7 @@ func search(depth_limit: int, node_limit: int = 0) -> Dictionary:
 	if evaluator == null:
 		evaluator = MaterialEvaluator.new()
 	_init_search_stack()
+	_init_root_moves()
 	evaluator.begin(pos)
 	if tt != null:
 		tt.new_search()
@@ -173,6 +204,8 @@ func search(depth_limit: int, node_limit: int = 0) -> Dictionary:
 			break
 		total_best_move_changes *= 0.5
 		_root_best_move_changes = 0
+		for root_move in root_moves:
+			root_move.begin_iteration(true)
 		# Snapshot working root best before this iteration; restore if aborted mid-ID.
 		var pre_best: int = best_move
 		var pre_score: int = best_score
@@ -182,15 +215,23 @@ func search(depth_limit: int, node_limit: int = 0) -> Dictionary:
 		var delta: int = T.VALUE_INFINITE
 		var score: int = T.VALUE_NONE
 
-		if enable_aspiration and depth >= 4:
-			delta = 10 + absi(avg_score) / 39605
-			alpha = maxi(avg_score - delta, -T.VALUE_INFINITE)
-			beta = mini(avg_score + delta, T.VALUE_INFINITE)
+		if enable_aspiration and depth >= 4 and not root_moves.is_empty():
+			var root_average: int = int(root_moves[0].average_score)
+			if root_average == -T.VALUE_INFINITE:
+				root_average = avg_score
+			var root_variance: int = int(root_moves[0].mean_squared_score)
+			if root_variance < 0:
+				root_variance = 0
+			delta = 10 + absi(root_variance) / 39605
+			alpha = maxi(root_average - delta, -T.VALUE_INFINITE)
+			beta = mini(root_average + delta, T.VALUE_INFINITE)
 			reductions.set_root_delta(beta - alpha)
 			while true:
 				if _should_stop():
 					break
-				score = _search(NODE_ROOT, depth, alpha, beta, 0, false)
+				_set_root_optimism(root_average)
+				score = _search_root(depth, alpha, beta)
+				_stable_sort_root_moves()
 				if _should_stop():
 					break
 				if score <= alpha:
@@ -207,7 +248,9 @@ func search(depth_limit: int, node_limit: int = 0) -> Dictionary:
 					break
 		else:
 			reductions.set_root_delta(T.VALUE_INFINITE)
-			score = _search(NODE_ROOT, depth, alpha, beta, 0, false)
+			_set_root_optimism(avg_score)
+			score = _search_root(depth, alpha, beta)
+			_stable_sort_root_moves()
 
 		if _should_stop():
 			# Discard mid-iteration root updates; keep last complete iteration.
@@ -236,7 +279,7 @@ func search(depth_limit: int, node_limit: int = 0) -> Dictionary:
 					"depth": depth,
 					"last_best_move_depth": last_best_move_depth,
 					"best_move_changes": total_best_move_changes,
-					"best_effort_nodes": int(_root_effort_by_move.get(best_move, 0)),
+					"best_effort_nodes": int(root_moves[0].effort) if not root_moves.is_empty() else 0,
 					"nodes": nodes,
 					"threads": 1,
 				})
@@ -255,6 +298,66 @@ func search(depth_limit: int, node_limit: int = 0) -> Dictionary:
 	if time_manager != null and _from_complete_iteration:
 		time_manager.commit_search_score(best_score)
 	return _result_dict()
+
+
+func _set_root_optimism(average: int) -> void:
+	if evaluator == null:
+		return
+	var root_color: int = pos.side_to_move if pos != null else 0
+	var value: int = 92 * average / (absi(average) + 95)
+	if root_color == T.COLOR_WHITE:
+		evaluator.set_optimism(value, -value)
+	else:
+		evaluator.set_optimism(-value, value)
+
+
+func _search_root(depth: int, alpha: int, beta: int) -> int:
+	## RootMove counterpart of upstream search<Root>. Root moves are deliberately
+	## not yielded by MovePicker: their PV, score history and stable ordering are
+	## persistent state across iterative deepening.
+	nodes += 1
+	if _maybe_check_stop():
+		return alpha
+	if root_moves.is_empty():
+		return T.mated_in(0) if (pos.checkers()[0] != 0 or pos.checkers()[1] != 0) else T.VALUE_DRAW
+	var alpha0 := alpha
+	var best_value := -T.VALUE_INFINITE
+	var move_count := 0
+	for root_move in root_moves:
+		var move: int = root_move.move()
+		if move == T.MOVE_NONE or not pos.legal(move):
+			continue
+		move_count += 1
+		var before := nodes
+		_do_move_synced(move)
+		var value: int
+		if move_count == 1:
+			value = -_search(NODE_PV, depth - 1, -beta, -alpha, 1, false)
+		else:
+			value = -_search(NODE_NON_PV, depth - 1, -(alpha + 1), -alpha, 1, true)
+			if value > alpha and value < beta:
+				value = -_search(NODE_PV, depth - 1, -beta, -alpha, 1, false)
+		var child_pv: PackedInt32Array = _pv_stack[1].duplicate()
+		_undo_move_synced(move)
+		root_move.effort += maxi(0, nodes - before)
+		_root_effort_by_move[move] = int(_root_effort_by_move.get(move, 0)) + maxi(0, nodes - before)
+		if _should_stop():
+			return alpha
+		if value > best_value:
+			best_value = value
+		if move_count == 1 or value > alpha:
+			root_move.set_score(value, alpha0, beta, child_pv, seldepth)
+			if value > alpha:
+				if best_move != T.MOVE_NONE and best_move != move:
+					_root_best_move_changes += 1
+				best_move = move
+				pv = root_move.pv.duplicate()
+				alpha = value
+				if alpha >= beta:
+					break
+		else:
+			root_move.score = -T.VALUE_INFINITE
+	return best_value if best_value != -T.VALUE_INFINITE else alpha
 
 
 func request_stop() -> void:
@@ -402,6 +505,8 @@ func _search(
 	## excluded_move: T.MOVE_NONE (0) unless singular-extension exclusion.
 	var pv_node: bool = node_type != NODE_NON_PV
 	var root_node: bool = node_type == NODE_ROOT
+	if ply >= 0 and ply < _pv_stack.size():
+		_pv_stack[ply] = PackedInt32Array()
 
 	nodes += 1
 	if ply > seldepth:
@@ -658,6 +763,7 @@ func _search(
 				value = -_search(NODE_PV, new_depth, -beta, -alpha, ply + 1, false, T.MOVE_NONE)
 
 		_undo_move_synced(m)
+		var child_pv: PackedInt32Array = _pv_stack[ply + 1].duplicate() if ply + 1 < _pv_stack.size() else PackedInt32Array()
 		ss_current_move[_ss(ply)] = T.MOVE_NONE
 		if root_node:
 			_root_effort_by_move[m] = int(_root_effort_by_move.get(m, 0)) + maxi(0, nodes - root_nodes_before)
@@ -670,6 +776,11 @@ func _search(
 			local_best = m
 			if value > alpha:
 				alpha = value
+				if pv_node and ply < _pv_stack.size():
+					var line := PackedInt32Array([m])
+					for child_move in child_pv:
+						line.append(child_move)
+					_pv_stack[ply] = line
 				if root_node or ply == 0:
 					if root_node and best_move != T.MOVE_NONE and best_move != m:
 						_root_best_move_changes += 1
@@ -760,6 +871,8 @@ func _update_histories_on_cutoff(
 
 
 func _qsearch(pv_node: bool, alpha: int, beta: int, ply: int) -> int:
+	if ply >= 0 and ply < _pv_stack.size():
+		_pv_stack[ply] = PackedInt32Array()
 	nodes += 1
 	if ply > seldepth:
 		seldepth = ply
@@ -811,6 +924,7 @@ func _qsearch(pv_node: bool, alpha: int, beta: int, ply: int) -> int:
 		_do_move_synced(m)
 		var score: int = -_qsearch(pv_node, -beta, -alpha, ply + 1)
 		_undo_move_synced(m)
+		var child_pv: PackedInt32Array = _pv_stack[ply + 1].duplicate() if ply + 1 < _pv_stack.size() else PackedInt32Array()
 		if score > best_value:
 			best_value = score
 			local_best = m
@@ -823,6 +937,11 @@ func _qsearch(pv_node: bool, alpha: int, beta: int, ply: int) -> int:
 			return score
 		if score > alpha:
 			alpha = score
+			if pv_node and ply < _pv_stack.size():
+				var line := PackedInt32Array([m])
+				for child_move in child_pv:
+					line.append(child_move)
+				_pv_stack[ply] = line
 
 	if tt != null and write_index >= 0:
 		var bound: int = T.BOUND_EXACT if pv_node and local_best != T.MOVE_NONE else T.BOUND_UPPER
