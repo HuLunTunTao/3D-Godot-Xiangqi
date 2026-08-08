@@ -85,6 +85,9 @@ python3 tools/ref_inference.py
 # GUT 测试套件:
 ...Godot --path . -s addons/gut/gut_cmdln.gd -gdir=res://src/test/gut -gexit
 
+# 固定节点 NNUE 搜索差分（与锁定上游 C++ oracle 比较）：
+...Godot --headless --path . -s res://src/test/diff_search_nodes.gd
+
 # C++ 基线(oracle / bench):
 cd ../Pikafish/src
 printf 'bench 16 1 1 ../../godot-pikafish/data/fens.txt eval\nquit\n' | ./pikafish

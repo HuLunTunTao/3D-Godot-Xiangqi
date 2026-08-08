@@ -63,7 +63,8 @@ Status legend: `todo` · `stub` · `partial` · `done` · `n/a`
 |---|---|---|---|
 | `fixtures/core/startpos.json` | `tools/gen_core_fixtures.py` | yes | Phase A minimal (fen, keys, movegen lists, perft 1–5) |
 | `fixtures/core/attacks_blockers.json` | `tools/gen_attack_fixtures.py` | yes | Phase B generic blocker attack cases (72) |
-| `fixtures/search/depth_corpus.json` | `tools/gen_search_fixtures.py` | yes | Plan §G: startpos + ~10 FENs, depth 1..N bestmove/score/root_moves/unique. Material GUT soft; NNUE narrow subset depth≤5 |
+| `fixtures/search/depth_corpus.json` | `tools/gen_search_fixtures.py` | yes | Plan §G: startpos + ~10 FENs, depth 1..N bestmove/score/root_moves/unique. Default NNUE GUT remains soft outside its narrow depth≤5 subset |
+| `fixtures/search/node_corpus.json` | `tools/gen_search_node_fixtures.py` + `src/test/diff_search_nodes.gd` | yes | locked upstream `go nodes` baseline; 4 FEN × 256/1024, reports legal/move/score/PV/depth/node deltas without conflating current search gaps with fixture validity |
 | `fixtures/core/perft_corpus.json` | `tools/gen_search_fixtures.py` | yes | Expanded perft; depth 1–4 hard match plus eligible fast depth-5 cases after `need_full_check` empty-ray fix |
 | `fixtures/core/playouts.json` | `tools/gen_playout_fixtures.py` | yes | ≥1000 random legal playout steps (move lists) |
 

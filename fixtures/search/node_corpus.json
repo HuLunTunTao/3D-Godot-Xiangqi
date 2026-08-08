@@ -1,0 +1,154 @@
+{
+  "format": "godot-pikafish-node-fixture/v1",
+  "upstream_sha": "2c5c998c211d524d26c38e7e3e71d51bc24cbe64",
+  "oracle": "/Users/hltt/projects/download/pikafish/Pikafish/src/pikafish",
+  "threads": 1,
+  "positions": [
+    {
+      "label": "startpos",
+      "fen": "rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR w - - 0 1",
+      "runs": [
+        {
+          "budget": 256,
+          "bestmove": "b2e2",
+          "score": {
+            "type": "cp",
+            "value": 116
+          },
+          "nodes": 256,
+          "completed_depth": 4,
+          "pv": [
+            "b2e2",
+            "c9e7"
+          ]
+        },
+        {
+          "budget": 1024,
+          "bestmove": "h0g2",
+          "score": {
+            "type": "cp",
+            "value": 46
+          },
+          "nodes": 1024,
+          "completed_depth": 5,
+          "pv": [
+            "h0g2",
+            "h9g7",
+            "b2e2",
+            "c6c5"
+          ]
+        }
+      ]
+    },
+    {
+      "label": "ref2_rook_check",
+      "fen": "5a3/3k5/3aR4/9/5r3/5n3/9/3A1A3/5K3/2BC2B2 w - - 0 1",
+      "runs": [
+        {
+          "budget": 256,
+          "bestmove": "e7d7",
+          "score": {
+            "type": "cp",
+            "value": 294
+          },
+          "nodes": 256,
+          "completed_depth": 5,
+          "pv": [
+            "e7d7",
+            "d8e8",
+            "d7d4",
+            "f4g2"
+          ]
+        },
+        {
+          "budget": 1024,
+          "bestmove": "e7d7",
+          "score": {
+            "type": "cp",
+            "value": 287
+          },
+          "nodes": 1024,
+          "completed_depth": 7,
+          "pv": [
+            "e7d7",
+            "d8e8"
+          ]
+        }
+      ]
+    },
+    {
+      "label": "ref5_rook_lift",
+      "fen": "2b1ka2r/3na2c1/4b3n/8R/8C/4C1P2/P1P1P3P/4B1N2/1r2A4/2BAK4 w - - 0 1",
+      "runs": [
+        {
+          "budget": 256,
+          "bestmove": "i5i7",
+          "score": {
+            "type": "cp",
+            "value": -45
+          },
+          "nodes": 256,
+          "completed_depth": 3,
+          "pv": [
+            "i5i7",
+            "d8b7"
+          ]
+        },
+        {
+          "budget": 1024,
+          "bestmove": "i5i7",
+          "score": {
+            "type": "cp",
+            "value": -74
+          },
+          "nodes": 1025,
+          "completed_depth": 6,
+          "pv": [
+            "i5i7",
+            "d8b7",
+            "g2h4",
+            "b7c5",
+            "h4g6",
+            "c5e4",
+            "e3e4"
+          ]
+        }
+      ]
+    },
+    {
+      "label": "ref20_mate_net",
+      "fen": "4ka3/3Pa4/r6R1/2C4C1/9/9/8n/9/4p3r/3K3R1 w - - 0 1",
+      "runs": [
+        {
+          "budget": 256,
+          "bestmove": "h7a7",
+          "score": {
+            "type": "cp",
+            "value": 419
+          },
+          "nodes": 256,
+          "completed_depth": 4,
+          "pv": [
+            "h7a7",
+            "e1d1"
+          ]
+        },
+        {
+          "budget": 1024,
+          "bestmove": "h7a7",
+          "score": {
+            "type": "cp",
+            "value": 192
+          },
+          "nodes": 1024,
+          "completed_depth": 6,
+          "pv": [
+            "h7a7",
+            "e1d1"
+          ]
+        }
+      ]
+    }
+  ],
+  "notes": "UCI go nodes N; node count can slightly exceed N at a stop-check boundary."
+}

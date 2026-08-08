@@ -261,7 +261,7 @@ def build_search_corpus(session: UciSession, max_depth: int) -> dict:
         "notes": (
             "Generated via interactive UCI `go depth N` + MultiPV. "
             "unique=true when top multipv leads by >=50cp or clearer mate. "
-            "Addon material leaf eval may diverge; GUT asserts exact when unique, "
+            "Addon search may diverge in root ordering; GUT asserts exact when unique, "
             "else bestmove ∈ root_moves."
         ),
     }

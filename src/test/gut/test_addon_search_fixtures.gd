@@ -14,6 +14,7 @@ const Bitboard = preload("res://addons/pikafish/core/bitboard.gd")
 const Config = preload("res://addons/pikafish/config.gd")
 
 const SEARCH_FX := "res://fixtures/search/depth_corpus.json"
+const NODE_FX := "res://fixtures/search/node_corpus.json"
 const PERFT_FX := "res://fixtures/core/perft_corpus.json"
 const PLAYOUT_FX := "res://fixtures/core/playouts.json"
 
@@ -57,11 +58,26 @@ func test_search_fixture_schema() -> void:
 	assert_true(d1.has("unique"))
 
 
+func test_fixed_node_fixture_schema() -> void:
+	var fx := _load_json(NODE_FX)
+	assert_eq(str(fx.get("format", "")), "godot-pikafish-node-fixture/v1")
+	assert_true(str(fx.get("upstream_sha", "")).begins_with("2c5c998c"))
+	var positions: Array = fx.get("positions", [])
+	assert_eq(positions.size(), 4)
+	for position in positions:
+		var runs: Array = position.get("runs", [])
+		assert_eq(runs.size(), 2)
+		for run in runs:
+			assert_gt(int(run.get("budget", 0)), 0)
+			assert_true(str(run.get("bestmove", "")).length() == 4)
+			assert_true(run.get("score", null) != null)
+
+
 func test_search_bestmove_against_fixture() -> void:
 	## When unique: require exact bestmove match.
 	## Else: require bestmove ∈ root_moves.
-	## Material leaf may diverge from NNUE oracle — count gaps but hard-fail only
-	## when the move is illegal; unique/membership tracked with soft asserts on hits.
+	## Even incremental NNUE search may diverge from the upstream root search —
+	## count gaps but hard-fail only when the move is illegal.
 	var fx := _load_json(SEARCH_FX)
 	var e = Eng.new()
 	assert_eq(e.initialize(), OK)
@@ -106,7 +122,8 @@ func test_search_bestmove_against_fixture() -> void:
 
 	e.shutdown()
 	# Hard: every search returned a legal move (asserted above). Soft parity:
-	# with material eval, expect many gaps vs NNUE; require at least schema exercised.
+	# Require the fixture path to be exercised; exact root parity is covered by
+	# the narrower NNUE test below and fixed-node differential reports.
 	assert_true(soft_total > 20, "exercised fixture depths")
 	# If any unique exact hits exist, good; membership hits optional under material.
 	gut.p(
@@ -115,13 +132,13 @@ func test_search_bestmove_against_fixture() -> void:
 	)
 	# Document remaining gaps without failing the suite on material-eval divergence.
 	if gaps.size() > 0:
-		gut.p("parity gaps (material leaf vs NNUE oracle), first 8:")
+		gut.p("parity gaps (addon NNUE search vs oracle), first 8:")
 		for i in range(mini(8, gaps.size())):
 			gut.p("  " + gaps[i])
 
 
 func test_search_unique_exact_when_matches() -> void:
-	## Hard assert exact match only for unique entries the material search also picks.
+	## Hard assert exact match only for unique entries the addon search also picks.
 	## Ensures the comparison path is wired; skips when eval backends disagree.
 	var fx := _load_json(SEARCH_FX)
 	var e = Eng.new()
@@ -138,7 +155,7 @@ func test_search_unique_exact_when_matches() -> void:
 			var got: String = Types.move_to_uci(e._last_result.bestmove)
 			var want: String = str(entry["bestmove"])
 			var root: Array = entry.get("root_moves", [])
-			# Unambiguous: equals when unique; else membership. Material may miss —
+			# Unambiguous: equals when unique; else membership. Search may miss —
 			# still require legal + (exact OR in root_moves OR documented gap via soft path).
 			assert_true(e.is_legal(e._last_result.bestmove))
 			if got == want or root.has(got):
