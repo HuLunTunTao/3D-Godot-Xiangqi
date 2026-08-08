@@ -14,3 +14,5 @@ var pv: PackedInt32Array = PackedInt32Array()
 ## True for intermediate ID updates; false for the final summary emitted with bestmove.
 var multipv: int = 1
 var is_final: bool = false
+## Position revision the search was started from.
+var revision: int = 0

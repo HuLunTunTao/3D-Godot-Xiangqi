@@ -12,6 +12,8 @@ extends RefCounted
 signal search_info(info)
 signal best_move_found(result)
 signal backend_changed(name: String, reason: String)
+## Emitted after every accepted position mutation. `move_info` is null for set_fen/new_game.
+signal position_changed(snapshot, move_info)
 
 const NnueLoader = preload("res://addons/pikafish/nnue/loader.gd")
 const NnueFeatures = preload("res://addons/pikafish/nnue/features.gd")
@@ -33,6 +35,10 @@ const ResultScript = preload("res://addons/pikafish/search/result.gd")
 const TimeManScript = preload("res://addons/pikafish/search/time_manager.gd")
 const InfoScript = preload("res://addons/pikafish/search/info.gd")
 const LimitsScript = preload("res://addons/pikafish/search/limits.gd")
+const PositionViewScript = preload("res://addons/pikafish/core/position_view.gd")
+const MoveInfoScript = preload("res://addons/pikafish/core/move_info.gd")
+
+const START_FEN := "rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR w - - 0 1"
 
 var config
 var _pos = PositionScript.new()
@@ -48,7 +54,11 @@ var _gpu = null
 var _cpu = null
 var _inc = null
 var _async_worker = null
-var _undo_stack: Array = []
+var _move_history: Array = []
+var _redo_stack: Array = []
+var _position_revision: int = 0
+## Private frames for the legacy incremental-NNUE board API below.
+var _incremental_undo_stack: Array = []
 var _canary_ok: bool = false
 var _canary_detail: String = ""
 var _tt = null
@@ -119,7 +129,9 @@ func shutdown() -> void:
 	_inc = null
 	loader = null
 	features = null
-	_undo_stack.clear()
+	_move_history.clear()
+	_redo_stack.clear()
+	_incremental_undo_stack.clear()
 	_worker = null
 	_history = null
 	_tt = null
@@ -133,40 +145,156 @@ func shutdown() -> void:
 func set_fen(fen: String) -> Error:
 	if not _initialized:
 		return ERR_UNCONFIGURED
-	return _pos.set_fen(fen)
+	# Validate off to the side so a malformed FEN never corrupts the live game state.
+	var next = PositionScript.new()
+	var err := next.set_fen(fen)
+	if err != OK:
+		return err
+	_invalidate_search_for_position_change()
+	_pos = next
+	_move_history.clear()
+	_redo_stack.clear()
+	_position_revision += 1
+	_emit_position_changed(null)
+	return OK
+
+
+func new_game() -> Error:
+	return set_fen(START_FEN)
 
 
 func get_fen() -> String:
 	return _pos.get_fen()
 
 
+func position_revision() -> int:
+	return _position_revision
+
+
+func get_position_view():
+	var view = PositionViewScript.new()
+	view.revision = _position_revision
+	if not _initialized:
+		return view
+	view.fen = _pos.get_fen()
+	view.pieces = _pos.board.duplicate()
+	view.side_to_move = _pos.side_to_move
+	view.in_check = in_check()
+	view.result = game_result()
+	view.ply = _pos.game_ply
+	return view
+
+
+func piece_at(square: int) -> int:
+	if not _initialized or not Types.is_ok_sq(square):
+		return Types.NO_PIECE
+	return _pos.piece_on(square)
+
+
 func set_position(fen: String, moves: PackedInt32Array = PackedInt32Array()) -> Error:
-	var err := set_fen(fen)
+	if not _initialized:
+		return ERR_UNCONFIGURED
+	# Validate the complete move list before replacing the visible position.
+	var next = PositionScript.new()
+	var err := next.set_fen(fen)
 	if err != OK:
 		return err
-	if moves.size() > 0:
-		return ERR_UNAVAILABLE  # Phase C
+	for move in moves:
+		if not _is_legal_on(next, move):
+			return ERR_INVALID_PARAMETER
+		next.do_move(move)
+	_invalidate_search_for_position_change()
+	_pos = next
+	_move_history.clear()
+	_redo_stack.clear()
+	_position_revision += 1
+	_emit_position_changed(null)
 	return OK
 
 
 func push_move(move: int) -> Error:
 	if not _initialized:
 		return ERR_UNCONFIGURED
-	if not _pos.legal(move):
+	if not _is_legal_on(_pos, move):
 		return ERR_INVALID_PARAMETER
+	var info = _make_move_info(move, "move")
+	_invalidate_search_for_position_change()
 	_pos.do_move(move)
+	info.gives_check = in_check()
+	_position_revision += 1
+	info.revision = _position_revision
+	_move_history.append(info.duplicate_info())
+	_redo_stack.clear()
+	_emit_position_changed(info)
 	return OK
+
+
+func push_uci(text: String) -> Error:
+	var move := move_from_uci(text)
+	if move == Types.MOVE_NONE:
+		return ERR_INVALID_PARAMETER
+	return push_move(move)
 
 
 func pop_move() -> Error:
 	if not _initialized:
 		return ERR_UNCONFIGURED
-	var i: int = _pos.st()
-	if i <= 0:
+	if _move_history.is_empty():
 		return ERR_INVALID_PARAMETER
-	var m: int = _pos.stack.move[i]
+	var original = _move_history.back()
+	var m: int = original.move
+	var info = original.duplicate_info()
+	info.kind = "undo"
+	_invalidate_search_for_position_change()
 	_pos.undo_move(m)
+	_position_revision += 1
+	info.revision = _position_revision
+	_redo_stack.append(original)
+	_move_history.pop_back()
+	_emit_position_changed(info)
 	return OK
+
+
+func can_undo() -> bool:
+	return not _move_history.is_empty()
+
+
+func can_redo() -> bool:
+	return not _redo_stack.is_empty()
+
+
+func redo_move() -> Error:
+	if not _initialized:
+		return ERR_UNCONFIGURED
+	if _redo_stack.is_empty():
+		return ERR_INVALID_PARAMETER
+	var original = _redo_stack.back()
+	var move: int = original.move
+	if not _is_legal_on(_pos, move):
+		return ERR_INVALID_DATA
+	var info = _make_move_info(move, "redo")
+	_invalidate_search_for_position_change()
+	_pos.do_move(move)
+	info.gives_check = in_check()
+	_position_revision += 1
+	info.revision = _position_revision
+	_move_history.append(info.duplicate_info())
+	_redo_stack.pop_back()
+	_emit_position_changed(info)
+	return OK
+
+
+func move_history() -> Array:
+	var out: Array = []
+	for info in _move_history:
+		out.append(info.duplicate_info())
+	return out
+
+
+func last_move_info():
+	if _move_history.is_empty():
+		return null
+	return _move_history.back().duplicate_info()
 
 
 func legal_moves() -> PackedInt32Array:
@@ -179,10 +307,34 @@ func legal_moves() -> PackedInt32Array:
 	return out
 
 
+func legal_moves_from(square: int) -> PackedInt32Array:
+	var out := PackedInt32Array()
+	if not _initialized or not Types.is_ok_sq(square):
+		return out
+	for move in legal_moves():
+		if Types.from_sq(move) == square:
+			out.append(move)
+	return out
+
+
+func square_from_file_rank(file: int, rank: int) -> int:
+	if file < 0 or file >= Types.FILE_NB or rank < 0 or rank >= Types.RANK_NB:
+		return Types.SQ_NONE
+	return Types.make_square(file, rank)
+
+
+func file_of(square: int) -> int:
+	return Types.file_of(square) if Types.is_ok_sq(square) else -1
+
+
+func rank_of(square: int) -> int:
+	return Types.rank_of(square) if Types.is_ok_sq(square) else -1
+
+
 func is_legal(move: int) -> bool:
 	if not _initialized:
 		return false
-	return _pos.legal(move)
+	return _is_legal_on(_pos, move)
 
 
 func move_from_uci(text: String) -> int:
@@ -299,10 +451,12 @@ func start_search(limits) -> Error:
 	var packed: Dictionary = _normalize_limits(limits)
 	packed["fen"] = _pos.get_fen()
 	packed["_gen"] = gen
+	packed["_position_revision"] = _position_revision
 	var run_sync: bool = bool(packed.get("sync", false))
 
 	if run_sync:
 		var raw: Dictionary = _run_search_job(packed, false)
+		raw["position_revision"] = int(packed["_position_revision"])
 		_finish_search(raw, gen)
 		return OK
 	_search_thread = Thread.new()
@@ -426,6 +580,7 @@ func _join_search_thread() -> void:
 func _search_thread_main(packed: Dictionary, gen: int) -> void:
 	## Background search owns a Position clone; main thread must not mutate _pos.
 	var raw: Dictionary = _run_search_job(packed, true)
+	raw["position_revision"] = int(packed.get("_position_revision", -1))
 	_thread_raw = raw
 	call_deferred("_finish_search_deferred", raw, gen)
 
@@ -434,6 +589,8 @@ func _run_search_job(packed: Dictionary, on_thread: bool) -> Dictionary:
 	var depth: int = int(packed.get("depth", 4))
 	var nodes_lim: int = int(packed.get("nodes", 0))
 	var fen: String = str(packed.get("fen", ""))
+	var gen: int = int(packed.get("_gen", -1))
+	var revision: int = int(packed.get("_position_revision", -1))
 	var worker = SearchWorkerScript.new()
 	_worker = worker
 	if on_thread:
@@ -452,10 +609,10 @@ func _run_search_job(packed: Dictionary, on_thread: bool) -> Dictionary:
 	# Per-iteration info → main thread via call_deferred when on worker thread.
 	if on_thread:
 		worker.info_cb = func(info_dict: Dictionary) -> void:
-			call_deferred("_emit_search_info", info_dict, false)
+			call_deferred("_emit_search_info", info_dict, false, gen, revision)
 	else:
 		worker.info_cb = func(info_dict: Dictionary) -> void:
-			_emit_search_info(info_dict, false)
+			_emit_search_info(info_dict, false, gen, revision)
 	# D006: Prefer incremental NNUE (board+acc synced with search do/undo).
 	worker.use_nnue_eval = config != null and config.use_nnue_eval
 	if worker.use_nnue_eval and loader != null and features != null:
@@ -489,6 +646,11 @@ func _finish_search_deferred(raw: Dictionary, gen: int) -> void:
 func _finish_search(raw: Dictionary, gen: int) -> void:
 	if gen != _search_gen:
 		return
+	var revision: int = int(raw.get("position_revision", -1))
+	if revision != _position_revision:
+		_searching = false
+		_worker = null
+		return
 	if _finish_emitted_gen == gen:
 		_searching = false
 		return
@@ -513,6 +675,7 @@ func _finish_search(raw: Dictionary, gen: int) -> void:
 	_last_result.node_limited = reason == "nodes"
 	_last_result.from_complete_iteration = bool(raw.get("from_complete_iteration", true))
 	_last_result.incomplete = bool(raw.get("incomplete", false))
+	_last_result.revision = revision
 	_emit_search_info({
 		"depth": _last_result.depth,
 		"seldepth": _last_result.seldepth,
@@ -521,13 +684,17 @@ func _finish_search(raw: Dictionary, gen: int) -> void:
 		"nps": _last_result.nps,
 		"time_ms": _last_result.time_ms,
 		"pv": _last_result.pv,
-	}, true)
+	}, true, gen, revision)
 	_searching = false
 	_worker = null
 	best_move_found.emit(_last_result)
 
 
-func _emit_search_info(info_dict: Dictionary, is_final: bool) -> void:
+func _emit_search_info(info_dict: Dictionary, is_final: bool, gen: int = -1, revision: int = -1) -> void:
+	if gen >= 0 and gen != _search_gen:
+		return
+	if revision >= 0 and revision != _position_revision:
+		return
 	var info = InfoScript.new()
 	info.depth = int(info_dict.get("depth", 0))
 	info.seldepth = int(info_dict.get("seldepth", 0))
@@ -536,6 +703,7 @@ func _emit_search_info(info_dict: Dictionary, is_final: bool) -> void:
 	info.nps = int(info_dict.get("nps", 0))
 	info.time_ms = int(info_dict.get("time_ms", 0))
 	info.pv = info_dict.get("pv", PackedInt32Array())
+	info.revision = _position_revision if revision < 0 else revision
 	info.is_final = is_final
 	search_info.emit(info)
 
@@ -550,14 +718,57 @@ func backend_info() -> Dictionary:
 		"network_dir": loader.network_dir if loader != null else "",
 		"loaded": loader.loaded if loader != null else false,
 		"initialized": _initialized,
+		"position_revision": _position_revision,
 	}
+
+
+func _make_move_info(move: int, kind: String):
+	var info = MoveInfoScript.new()
+	info.kind = kind
+	info.move = move
+	info.from = Types.from_sq(move)
+	info.to = Types.to_sq(move)
+	info.moving_piece = _pos.moved_piece(move)
+	info.captured_piece = _pos.piece_on(info.to)
+	info.side_before = _pos.side_to_move
+	info.uci = move_to_uci(move)
+	return info
+
+
+func _is_legal_on(pos, move: int) -> bool:
+	if not Types.move_is_ok(move):
+		return false
+	var from := Types.from_sq(move)
+	var to := Types.to_sq(move)
+	if not Types.is_ok_sq(from) or not Types.is_ok_sq(to):
+		return false
+	return pos.pseudo_legal(move) and pos.legal(move)
+
+
+func _emit_position_changed(move_info) -> void:
+	position_changed.emit(get_position_view(), move_info)
+
+
+func _invalidate_search_for_position_change() -> void:
+	## A completed worker may still reach the main thread after cancellation.
+	## Incrementing the generation and revision prevents that stale result from emitting.
+	if not _searching:
+		return
+	_search_stop = true
+	_search_gen += 1
+	if _worker != null:
+		_worker.request_stop()
+	_join_search_thread()
+	_searching = false
+	_worker = null
+	_thread_raw = {}
 
 
 ## --- Incremental NNUE board API ---
 
 func refresh(pos) -> void:
 	_inc.refresh(pos)
-	_undo_stack.clear()
+	_incremental_undo_stack.clear()
 
 
 func evaluate_incremental(pos) -> int:
@@ -567,12 +778,12 @@ func evaluate_incremental(pos) -> int:
 func do_move(pos, frm: int, to: int) -> void:
 	var u: Dictionary = pos.do_move(frm, to)
 	var inc_frame = _inc.update_after_move(pos)
-	_undo_stack.append({"board": u, "inc": inc_frame})
+	_incremental_undo_stack.append({"board": u, "inc": inc_frame})
 
 
 func undo_move(pos) -> void:
-	assert(not _undo_stack.is_empty(), "undo_move: empty stack")
-	var frame: Dictionary = _undo_stack.pop_back()
+	assert(not _incremental_undo_stack.is_empty(), "undo_move: empty stack")
+	var frame: Dictionary = _incremental_undo_stack.pop_back()
 	pos.undo_move(frame["board"])
 	_inc.undo_update(frame["inc"])
 

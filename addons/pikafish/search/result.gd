@@ -27,3 +27,5 @@ var node_limited: bool = false
 var from_complete_iteration: bool = true
 ## True when depth-1 never finished and a legal fallback move was used.
 var incomplete: bool = false
+## Position revision the search was started from.
+var revision: int = 0

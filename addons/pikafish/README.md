@@ -50,6 +50,43 @@ Also available: `get_fen()`, `push_move` / `pop_move`, `is_legal`,
 `move_from_uci` / `move_to_uci`, `in_check`, `game_result`, `perft`,
 `evaluate_static` / `evaluate_batch`.
 
+### Game UI state and move history
+
+Use the facade rather than parsing FEN or accessing `core/position.gd` from a game.
+Every accepted position change increments `position_revision()` and emits one
+`position_changed(snapshot, move_info)` signal. A search result is emitted only when
+its revision still matches the current position, so a late worker result cannot play
+on a replacement board.
+
+```gdscript
+engine.position_changed.connect(func(view, move):
+	# `move` is null after set_fen/new_game, otherwise PikafishMoveInfo.
+	redraw_board(view.pieces, view.side_to_move)
+)
+
+assert(engine.new_game() == OK)
+var square := engine.square_from_file_rank(0, 3) # a3
+var candidates := engine.legal_moves_from(square)
+assert(engine.push_move(candidates[0]) == OK)
+
+assert(engine.can_undo())
+engine.pop_move()
+assert(engine.can_redo())
+engine.redo_move()
+```
+
+`get_position_view()` returns a `PikafishPositionView` with `revision`, `fen`,
+90-square `pieces`, `side_to_move`, `in_check`, `result`, and `ply`. Treat it as
+read-only. `piece_at(square)`, `file_of(square)`, `rank_of(square)`, and
+`square_from_file_rank(file, rank)` avoid leaking board encoding into UI code.
+
+`PikafishMoveInfo` records `kind` (`move`/`undo`/`redo`), packed `move`, source and
+target squares, moving/captured pieces, UCI text, check flag, and resulting revision.
+`move_history()` and `last_move_info()` return copies suitable for a move list.
+`push_uci("a3a4")` is provided for persistence and network adapters.
+`set_position(fen, moves)` validates the complete supplied move list before replacing
+the live position; it emits one snapshot event and starts a new undo history.
+
 ### `start_search` (async by default) / `stop_search`
 
 Recommended game-layer call — **async**, time budget, no main-thread block:
@@ -93,6 +130,7 @@ engine.start_search({"depth": 4, "sync": true})
 | `search_info(info)` | `PikafishSearchInfo` | Each completed ID iteration (`is_final=false`) and once with the final summary (`is_final=true`) |
 | `best_move_found(result)` | `PikafishSearchResult` | Once per search: `bestmove`, `score`, `nodes`, `completed_depth`, `stop_reason`, `from_complete_iteration`, … |
 | `backend_changed(name, reason)` | `String`, `String` | GPU/CPU selection or fallback |
+| `position_changed(snapshot, move_info)` | `PikafishPositionView`, `PikafishMoveInfo?` | Every accepted `set_fen`, new game, move, undo, or redo |
 
 **Search leaf eval:** default material; set `PikafishConfig.use_nnue_eval = true` for
 CPU incremental NNUE. GPU is used for public `evaluate_batch` / async batch only —
