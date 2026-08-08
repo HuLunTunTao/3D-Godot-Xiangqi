@@ -9,6 +9,7 @@ const Position = preload("res://addons/pikafish/core/position.gd")
 const Attacks = preload("res://addons/pikafish/core/attacks.gd")
 const Zobrist = preload("res://addons/pikafish/core/zobrist.gd")
 const Bitboard = preload("res://addons/pikafish/core/bitboard.gd")
+const Config = preload("res://addons/pikafish/config.gd")
 
 const START_FEN := "rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR w - - 0 1"
 
@@ -30,6 +31,37 @@ func test_search_depth_1_returns_legal_bestmove() -> void:
 	assert_true(Types.move_is_ok(e._last_result.bestmove))
 	assert_true(e.is_legal(e._last_result.bestmove))
 	e.shutdown()
+
+
+func test_search_defaults_to_incremental_nnue_evaluator() -> void:
+	var cfg = Config.new()
+	cfg.prefer_gpu = false
+	var e = Eng.new()
+	assert_eq(e.initialize(cfg), OK)
+	assert_eq(e.set_fen(START_FEN), OK)
+	assert_eq(e.start_search({"depth": 1, "sync": true}), OK)
+	assert_eq(e._last_result.evaluation_mode, Config.EVALUATION_NNUE)
+	e.shutdown()
+
+
+func test_search_material_evaluator_is_explicit_opt_in() -> void:
+	var cfg = Config.new()
+	cfg.prefer_gpu = false
+	cfg.evaluation_mode = Config.EVALUATION_MATERIAL
+	var e = Eng.new()
+	assert_eq(e.initialize(cfg), OK)
+	assert_eq(e.set_fen(START_FEN), OK)
+	assert_eq(e.start_search({"depth": 1, "sync": true}), OK)
+	assert_eq(e._last_result.evaluation_mode, Config.EVALUATION_MATERIAL)
+	e.shutdown()
+
+
+func test_legacy_nnue_switch_resolves_when_mode_is_auto() -> void:
+	var cfg = Config.new()
+	cfg.use_nnue_eval = false
+	assert_eq(cfg.resolved_evaluation_mode(), Config.EVALUATION_MATERIAL)
+	cfg.use_nnue_eval = true
+	assert_eq(cfg.resolved_evaluation_mode(), Config.EVALUATION_NNUE)
 
 
 func test_search_depth_2_to_4_nodes_increase() -> void:

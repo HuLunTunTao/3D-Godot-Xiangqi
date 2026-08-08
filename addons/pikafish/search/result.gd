@@ -29,3 +29,5 @@ var from_complete_iteration: bool = true
 var incomplete: bool = false
 ## Position revision the search was started from.
 var revision: int = 0
+## Static evaluator selected for this search (`nnue` or `material`).
+var evaluation_mode: String = ""

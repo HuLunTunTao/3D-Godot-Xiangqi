@@ -11,6 +11,7 @@ const Hist = preload("res://addons/pikafish/search/history.gd")
 const MP = preload("res://addons/pikafish/search/move_picker.gd")
 const Reductions = preload("res://addons/pikafish/search/reductions.gd")
 const TimeMan = preload("res://addons/pikafish/search/time_manager.gd")
+const MaterialEvaluator = preload("res://addons/pikafish/search/material_evaluator.gd")
 
 const NODE_NON_PV := 0
 const NODE_PV := 1
@@ -28,11 +29,9 @@ var tt
 var history = null  ## PikafishHistory
 var reductions = null  ## PikafishReductions
 var time_manager = null  ## PikafishTimeManager
-var evaluate_cb: Callable  # Callable(Position) -> int when use_nnue_eval (full refresh fallback)
-## Optional incremental NNUE: board + accumulator kept in sync with do/undo (D006 update).
-var nnue_board = null
-var nnue_acc = null
-var _nnue_undo: Array = []
+## Injected static-evaluation strategy. Direct SearchWorker users get material
+## fallback; PikafishEngine injects CPU incremental NNUE by default.
+var evaluator = null  ## PikafishSearchEvaluator
 ## Optional external stop (engine sets via Thread); polled with stop_flag.
 var external_stop_cb: Callable
 ## Optional per-iteration info: Callable(Dictionary) after each completed ID step.
@@ -66,10 +65,6 @@ var enable_razoring := true
 var enable_aspiration := true
 var enable_probcut := false
 var enable_singular := false
-## Material eval by default; NNUE via incremental acc or evaluate_cb.
-var use_nnue_eval := false
-
-
 func _ensure_helpers() -> void:
 	if history == null:
 		history = Hist.new()
@@ -103,60 +98,24 @@ func _cont_hist_for_picker(ply: int) -> PackedInt32Array:
 	return out
 
 
-func _nnue_refresh_root() -> void:
-	if not use_nnue_eval or nnue_board == null or nnue_acc == null or pos == null:
-		return
-	nnue_board.load_from_position(pos)
-	nnue_acc.refresh(nnue_board)
-	_nnue_undo.clear()
-
-
-func _nnue_do_move(m: int) -> void:
-	if nnue_board == null or nnue_acc == null:
-		return
-	var u: Dictionary = nnue_board.do_move(T.from_sq(m), T.to_sq(m))
-	var inc = nnue_acc.update_after_move(nnue_board)
-	_nnue_undo.append({"board": u, "inc": inc, "null": false})
-
-
-func _nnue_undo_move() -> void:
-	if _nnue_undo.is_empty():
-		return
-	var frame: Dictionary = _nnue_undo.pop_back()
-	if bool(frame.get("null", false)):
-		nnue_board.stm ^= 1
-		nnue_acc.refresh(nnue_board)
-		return
-	nnue_board.undo_move(frame["board"])
-	nnue_acc.undo_update(frame["inc"])
-
-
-func _nnue_do_null() -> void:
-	if nnue_board == null or nnue_acc == null:
-		return
-	nnue_board.stm ^= 1
-	nnue_acc.refresh(nnue_board)
-	_nnue_undo.append({"null": true})
-
-
 func _do_move_synced(m: int) -> void:
 	pos.do_move(m)
-	_nnue_do_move(m)
+	evaluator.do_move(m)
 
 
 func _undo_move_synced(m: int) -> void:
 	pos.undo_move(m)
-	_nnue_undo_move()
+	evaluator.undo_move()
 
 
 func _do_null_synced() -> void:
 	pos.do_null_move()
-	_nnue_do_null()
+	evaluator.do_null_move()
 
 
 func _undo_null_synced() -> void:
 	pos.undo_null_move()
-	_nnue_undo_move()
+	evaluator.undo_null_move()
 
 
 func search(depth_limit: int, node_limit: int = 0) -> Dictionary:
@@ -174,9 +133,10 @@ func search(depth_limit: int, node_limit: int = 0) -> Dictionary:
 	_from_complete_iteration = false
 	_incomplete = false
 	_stop_reason = ""
-	_nnue_undo.clear()
+	if evaluator == null:
+		evaluator = MaterialEvaluator.new()
 	_init_search_stack()
-	_nnue_refresh_root()
+	evaluator.begin(pos)
 	if tt != null:
 		tt.new_search()
 	if time_manager != null and node_limit <= 0 and time_manager.node_limit > 0:
@@ -828,22 +788,4 @@ func _qsearch(pv_node: bool, alpha: int, beta: int, ply: int) -> int:
 
 
 func _eval() -> int:
-	# GDS-DIVERGENCE: PERF (D006)
-	# C++ behavior: incremental NNUE accumulator at every leaf.
-	# GDScript: prefer search-side nnue_board+accumulator (do/undo synced); else
-	# evaluate_cb full refresh; else material.
-	if use_nnue_eval and nnue_acc != null and nnue_board != null:
-		return int(nnue_acc.evaluate(nnue_board))
-	if use_nnue_eval and evaluate_cb.is_valid():
-		return int(evaluate_cb.call(pos))
-	var mat := 0
-	for s in range(T.SQUARE_NB):
-		var pc: int = pos.piece_on(s)
-		if pc == T.NO_PIECE:
-			continue
-		var v: int = T.PIECE_VALUE[pc]
-		if T.color_of(pc) == pos.side_to_move:
-			mat += v
-		else:
-			mat -= v
-	return mat
+	return evaluator.evaluate(pos)

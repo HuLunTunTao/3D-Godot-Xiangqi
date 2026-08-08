@@ -30,6 +30,8 @@ const AttacksScript = preload("res://addons/pikafish/core/attacks.gd")
 const ZobristScript = preload("res://addons/pikafish/core/zobrist.gd")
 const BitboardScript = preload("res://addons/pikafish/core/bitboard.gd")
 const SearchWorkerScript = preload("res://addons/pikafish/search/search_worker.gd")
+const MaterialEvaluatorScript = preload("res://addons/pikafish/search/material_evaluator.gd")
+const NnueEvaluatorScript = preload("res://addons/pikafish/search/nnue_evaluator.gd")
 const TTScript = preload("res://addons/pikafish/search/tt.gd")
 const ResultScript = preload("res://addons/pikafish/search/result.gd")
 const TimeManScript = preload("res://addons/pikafish/search/time_manager.gd")
@@ -613,15 +615,15 @@ func _run_search_job(packed: Dictionary, on_thread: bool) -> Dictionary:
 	else:
 		worker.info_cb = func(info_dict: Dictionary) -> void:
 			_emit_search_info(info_dict, false, gen, revision)
-	# D006: Prefer incremental NNUE (board+acc synced with search do/undo).
-	worker.use_nnue_eval = config != null and config.use_nnue_eval
-	if worker.use_nnue_eval and loader != null and features != null:
-		worker.nnue_board = NnueBoard.new()
-		worker.nnue_board.load_from_position(worker.pos)
-		worker.nnue_acc = NnueAcc.new(loader, features)
-		worker.nnue_acc.refresh(worker.nnue_board)
-	worker.evaluate_cb = func(p) -> int:
-		return evaluate_board(_nnue_board_from_position(p))
+	var eval_mode := ConfigScript.EVALUATION_NNUE
+	if config != null:
+		eval_mode = config.resolved_evaluation_mode()
+	if eval_mode == ConfigScript.EVALUATION_NNUE and loader != null and features != null:
+		worker.evaluator = NnueEvaluatorScript.new(loader, features)
+	else:
+		worker.evaluator = MaterialEvaluatorScript.new()
+		# Defensive fallback for callers that invoke an incompletely initialized facade.
+		eval_mode = ConfigScript.EVALUATION_MATERIAL
 	if config != null:
 		worker.enable_probcut = config.enable_probcut
 		worker.enable_singular = config.enable_singular
@@ -631,6 +633,7 @@ func _run_search_job(packed: Dictionary, on_thread: bool) -> Dictionary:
 	if _search_stop:
 		worker.request_stop()
 	var raw: Dictionary = worker.search(depth, nodes_lim)
+	raw["evaluation_mode"] = eval_mode
 	if _search_stop and str(raw.get("stop_reason", "")) != "stop":
 		raw["stop_reason"] = "stop"
 	raw["time_ms"] = tm.elapsed_ms()
@@ -676,6 +679,7 @@ func _finish_search(raw: Dictionary, gen: int) -> void:
 	_last_result.from_complete_iteration = bool(raw.get("from_complete_iteration", true))
 	_last_result.incomplete = bool(raw.get("incomplete", false))
 	_last_result.revision = revision
+	_last_result.evaluation_mode = str(raw.get("evaluation_mode", ""))
 	_emit_search_info({
 		"depth": _last_result.depth,
 		"seldepth": _last_result.seldepth,

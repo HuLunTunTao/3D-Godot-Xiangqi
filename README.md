@@ -16,7 +16,7 @@
 `RenderingDevice` 时自动回退到纯 GDScript CPU 参考。
 两条评测路径:
 
-- **搜索 / 连续走子**:`refresh` → `do_move` / `undo_move` → `evaluate_incremental`(CPU 增量累加器)
+- **搜索 / 连续走子**:默认 CPU 增量 NNUE；仅诊断/基准时可显式切换 material fallback
 - **大批无关局面**:`evaluate` / `evaluate_batch`(PSQT 在 GPU,batch 上限 512)
 
 头烟测试:`Godot --headless --path . -s res://tools/smoke_addon_headless.gd`(期望 `SMOKE_PASS`)。

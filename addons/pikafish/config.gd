@@ -13,8 +13,14 @@ var allow_ios_gpu_probe: bool = true
 var canary_count: int = 5
 var hash_mb: int = 16
 var threads: int = 1  # Phase A/G: single worker only
-## When true, search leaves use incremental NNUE (board+accumulator synced with do/undo).
-var use_nnue_eval: bool = false
+const EVALUATION_NNUE := "nnue"
+const EVALUATION_MATERIAL := "material"
+## Search static evaluator. Empty selects the compatibility default: NNUE.
+## Set to `EVALUATION_MATERIAL` only for diagnostics and constrained benchmarks.
+var evaluation_mode: String = ""
+## Deprecated compatibility switch. Used only when `evaluation_mode` is empty;
+## its default is NNUE so existing callers that do not set it get upstream mode.
+var use_nnue_eval: bool = true
 ## Opt-in ProbCut / singular extension (default off until fixed-node parity is strong).
 var enable_probcut: bool = false
 var enable_singular: bool = false
@@ -27,3 +33,11 @@ func resolve_network_dir() -> String:
 	if FileAccess.file_exists(addon_data.path_join("manifest.json")):
 		return addon_data
 	return "res://data"
+
+
+func resolved_evaluation_mode() -> String:
+	if evaluation_mode == EVALUATION_MATERIAL:
+		return EVALUATION_MATERIAL
+	if evaluation_mode == EVALUATION_NNUE:
+		return EVALUATION_NNUE
+	return EVALUATION_NNUE if use_nnue_eval else EVALUATION_MATERIAL
