@@ -5,8 +5,8 @@ extends GutTest
 const T = preload("res://addons/pikafish/core/types.gd")
 const BB = preload("res://addons/pikafish/core/bitboard.gd")
 const A = preload("res://addons/pikafish/core/attacks.gd")
-const C = preload("res://src/nnue/nnue_consts.gd")
-const XAttacks = preload("res://src/nnue/attacks.gd")
+const C = preload("res://addons/pikafish/nnue/consts.gd")
+const XAttacks = preload("res://addons/pikafish/nnue/attacks.gd")
 const S = preload("res://src/test/gut/nnue_test_support.gd")
 
 

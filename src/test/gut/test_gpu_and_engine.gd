@@ -2,19 +2,19 @@ extends GutTest
 
 ## GPU/CPU parity, batch edge cases, engine facade.
 
-const NNUELoader = preload("res://src/nnue/nnue_loader.gd")
-const XFeatures = preload("res://src/nnue/features.gd")
-const XGpuInference = preload("res://src/nnue/gpu_inference.gd")
-const XRefInference = preload("res://src/nnue/ref_inference.gd")
-const XNnueEngine = preload("res://src/nnue/nnue_engine.gd")
-const XBoard = preload("res://src/nnue/board.gd")
+const NNUELoader = preload("res://addons/pikafish/nnue/loader.gd")
+const XFeatures = preload("res://addons/pikafish/nnue/features.gd")
+const XGpuInference = preload("res://addons/pikafish/nnue/gpu_inference.gd")
+const XRefInference = preload("res://addons/pikafish/nnue/cpu_inference.gd")
+const XNnueEngine = preload("res://src/test/nnue_test_engine.gd")
+const XBoard = preload("res://addons/pikafish/nnue/board.gd")
 const S = preload("res://src/test/gut/nnue_test_support.gd")
 
 var loader: NNUELoader
 var features: XFeatures
 var ref: XRefInference
-var gpu: XGpuInference
-var engine: XNnueEngine
+var gpu
+var engine
 var ref_data: Array = []
 
 

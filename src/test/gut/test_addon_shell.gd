@@ -1,14 +1,14 @@
 extends GutTest
 
-## Phase A: addon facade, types, fixtures, and deprecated XNnueEngine wrapper.
+## Addon facade, types, fixtures, and NNUE integration.
 
 const PikafishEngineScript = preload("res://addons/pikafish/pikafish.gd")
 const PikafishConfigScript = preload("res://addons/pikafish/config.gd")
 const LimitsScript = preload("res://addons/pikafish/search/limits.gd")
 const Types = preload("res://addons/pikafish/core/types.gd")
-const NNUELoader = preload("res://src/nnue/nnue_loader.gd")
-const XFeatures = preload("res://src/nnue/features.gd")
-const XNnueEngine = preload("res://src/nnue/nnue_engine.gd")
+const NNUELoader = preload("res://addons/pikafish/nnue/loader.gd")
+const XFeatures = preload("res://addons/pikafish/nnue/features.gd")
+const XNnueEngine = preload("res://src/test/nnue_test_engine.gd")
 const S = preload("res://src/test/gut/nnue_test_support.gd")
 
 const START_FEN := "rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR w - - 0 1"

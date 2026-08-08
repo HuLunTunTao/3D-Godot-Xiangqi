@@ -4,10 +4,10 @@ extends SceneTree
 ## reference FENs, compare to the pikafish oracle internal integer.
 ## Usage: godot --headless -s res://src/test/run_ref_test.gd
 
-const NNUELoader = preload("res://src/nnue/nnue_loader.gd")
-const XFeatures = preload("res://src/nnue/features.gd")
-const XRefInference = preload("res://src/nnue/ref_inference.gd")
-const XBoard = preload("res://src/nnue/board.gd")
+const NNUELoader = preload("res://addons/pikafish/nnue/loader.gd")
+const XFeatures = preload("res://addons/pikafish/nnue/features.gd")
+const XRefInference = preload("res://addons/pikafish/nnue/cpu_inference.gd")
+const XBoard = preload("res://addons/pikafish/nnue/board.gd")
 
 var _logf: FileAccess
 

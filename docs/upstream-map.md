@@ -21,7 +21,7 @@ Status legend: `todo` · `stub` · `partial` · `done` · `n/a`
 | `position` rules | `addons/pikafish/core/rules.gd` | partial | rule_judge / detect_chases / chased / chase_legal |
 | `movegen.h/cpp` | `addons/pikafish/core/movegen.gd` | partial | Five GenTypes; perft corpus depth 1–4 hard match, plus eligible fast depth-5 cases (incl. `ref3_complex_b`=31825) |
 | Zobrist (in position) | `addons/pikafish/core/zobrist.gd` | done | hex fixture, PRNG seed 1070372 |
-| `evaluate.*`, `nnue/*` | `addons/pikafish/nnue/*`, `addons/pikafish/shaders/` | done | Phase E: addon authoritative; `src/nnue` thin shims + deprecated `XNnueEngine` |
+| `evaluate.*`, `nnue/*` | `addons/pikafish/nnue/*`, `addons/pikafish/shaders/` | done | addon authoritative; `src/` only retains tests |
 | `tt.*` | `addons/pikafish/search/tt.gd` | partial | SoA ClusterSize=3 |
 | `history.h` | `addons/pikafish/search/history.gd` | done | Butterfly/LowPly/Capture/PieceTo/Correction + Continuation[2][2]/PawnHistory/UnifiedCorrection (lazy PackedArray); gravity |
 | `movepick.*` | `addons/pikafish/search/move_picker.gd` | done | Main/evasion/qsearch/probcut stages; SEE good/bad; skip_quiet; quiet score: threat/check/pawn/cont[0..3,5] |
@@ -77,11 +77,10 @@ Update this table as each Phase B–J port lands. Every ported function comment 
 
 | Item | Status | Notes |
 |---|---|---|
-| `addons/pikafish/README.md` public API | done | init, set_fen, legal_moves, start_search sync/async, stop, signals, Godot min, GPL/ODbL, data packing, XNnueEngine migration |
-| Deprecate `XNnueEngine` header | done | points to `PikafishEngine` |
+| `addons/pikafish/README.md` public API | done | init, set_fen, legal_moves, start_search sync/async, stop, signals, Godot min, GPL/ODbL, data packing |
 | `tools/smoke_addon_headless.gd` | done | `--path . -s …` → `SMOKE_PASS` |
 | `tools/make_smoke_project.sh` + `examples/smoke_addon/` | done | copies addon+data (+ host NNUE bridge until Phase E) to `/tmp` |
 | Root README pointer | done | points to addon README |
-| Self-contained addon (no `src/nnue`) | done (Phase E) | Facade preloads `addons/pikafish/nnue/*` + shaders; `src/nnue` thin `extends` shims |
+| Self-contained addon (no runtime `src/` dependency) | done (Phase E) | Facade and tests preload `addons/pikafish/nnue/*` + shaders directly |
 | iPad GPU 23/23 retest | blocked (device) | not part of desktop Phase J; see D003 |
 | Isolated `/tmp` smoke needs `fixtures/core` | done | `make_smoke_project.sh` copies fixtures for zobrist |

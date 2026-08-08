@@ -2,15 +2,15 @@ extends GutTest
 
 ## Incremental accumulator: multi-step, captures, bucket changes, deep undo.
 
-const C = preload("res://src/nnue/nnue_consts.gd")
-const NNUELoader = preload("res://src/nnue/nnue_loader.gd")
-const XFeatures = preload("res://src/nnue/features.gd")
-const XNnueEngine = preload("res://src/nnue/nnue_engine.gd")
+const C = preload("res://addons/pikafish/nnue/consts.gd")
+const NNUELoader = preload("res://addons/pikafish/nnue/loader.gd")
+const XFeatures = preload("res://addons/pikafish/nnue/features.gd")
+const XNnueEngine = preload("res://src/test/nnue_test_engine.gd")
 const S = preload("res://src/test/gut/nnue_test_support.gd")
 
 var loader: NNUELoader
 var features: XFeatures
-var engine: XNnueEngine
+var engine
 var ref_data: Array = []
 var palace: PackedByteArray
 

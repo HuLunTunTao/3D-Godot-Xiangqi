@@ -1,20 +1,20 @@
 extends GutTest
 
-## Correctness tests: GDScript reference, GPU (when available), and XNnueEngine
+## Correctness tests: GDScript reference, GPU (when available), and PikafishEngine
 ## facade (GPU with CPU fallback) must match the pikafish oracle.
 
-const NNUELoader = preload("res://src/nnue/nnue_loader.gd")
-const XFeatures = preload("res://src/nnue/features.gd")
-const XGpuInference = preload("res://src/nnue/gpu_inference.gd")
-const XRefInference = preload("res://src/nnue/ref_inference.gd")
-const XNnueEngine = preload("res://src/nnue/nnue_engine.gd")
-const XBoard = preload("res://src/nnue/board.gd")
+const NNUELoader = preload("res://addons/pikafish/nnue/loader.gd")
+const XFeatures = preload("res://addons/pikafish/nnue/features.gd")
+const XGpuInference = preload("res://addons/pikafish/nnue/gpu_inference.gd")
+const XRefInference = preload("res://addons/pikafish/nnue/cpu_inference.gd")
+const XNnueEngine = preload("res://src/test/nnue_test_engine.gd")
+const XBoard = preload("res://addons/pikafish/nnue/board.gd")
 
 var loader: NNUELoader
 var features: XFeatures
 var ref: XRefInference
-var gpu: XGpuInference
-var engine: XNnueEngine
+var gpu
+var engine
 var ref_data: Array = []
 
 
@@ -108,7 +108,7 @@ func test_engine_matches_oracle() -> void:
 			mismatches += 1
 			push_error("engine(%s) mismatch fen=%s got=%d want=%d" % [
 				engine.backend_name, rec["fen"], got, want])
-	assert_eq(mismatches, 0, "XNnueEngine must match oracle (tolerance 1)")
+	assert_eq(mismatches, 0, "PikafishEngine must match oracle (tolerance 1)")
 
 
 func test_engine_batch_matches_oracle() -> void:
@@ -121,7 +121,7 @@ func test_engine_batch_matches_oracle() -> void:
 		var want: int = int(ref_data[i]["internal"])
 		if absi(res[i] - want) > 1:
 			mismatches += 1
-	assert_eq(mismatches, 0, "XNnueEngine.evaluate_batch must match oracle")
+	assert_eq(mismatches, 0, "PikafishEngine.evaluate_batch must match oracle")
 
 
 func test_features_bucket_and_counts() -> void:
@@ -155,7 +155,7 @@ func test_incremental_matches_full_eval() -> void:
 			if (pc >> 3) != b.stm:
 				continue
 			# Prefer an adjacent empty or occupied square via attack generator
-			var XAttacks = preload("res://src/nnue/attacks.gd")
+			var XAttacks = preload("res://addons/pikafish/nnue/attacks.gd")
 			var attacks: Array
 			var pt := pc & 7
 			if pt == 4:  # PAWN

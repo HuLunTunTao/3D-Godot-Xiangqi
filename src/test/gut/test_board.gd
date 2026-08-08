@@ -2,8 +2,8 @@ extends GutTest
 
 ## Board FEN load + do_move/undo_move restoration (quiet, capture, king move).
 
-const C = preload("res://src/nnue/nnue_consts.gd")
-const XBoard = preload("res://src/nnue/board.gd")
+const C = preload("res://addons/pikafish/nnue/consts.gd")
+const XBoard = preload("res://addons/pikafish/nnue/board.gd")
 const S = preload("res://src/test/gut/nnue_test_support.gd")
 
 const START := "rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR w"

@@ -3,14 +3,14 @@ extends SceneTree
 ## Reproducible NNUE benchmark. Run with a graphical renderer:
 ## Godot --path . -s res://src/test/bench_gpu.gd
 
-const C = preload("res://src/nnue/nnue_consts.gd")
-const NNUELoader = preload("res://src/nnue/nnue_loader.gd")
-const XFeatures = preload("res://src/nnue/features.gd")
-const XGpuInference = preload("res://src/nnue/gpu_inference.gd")
-const XRefInference = preload("res://src/nnue/ref_inference.gd")
-const XIncAccumulator = preload("res://src/nnue/inc_accumulator.gd")
-const XNnueEngine = preload("res://src/nnue/nnue_engine.gd")
-const XBoard = preload("res://src/nnue/board.gd")
+const C = preload("res://addons/pikafish/nnue/consts.gd")
+const NNUELoader = preload("res://addons/pikafish/nnue/loader.gd")
+const XFeatures = preload("res://addons/pikafish/nnue/features.gd")
+const XGpuInference = preload("res://addons/pikafish/nnue/gpu_inference.gd")
+const XRefInference = preload("res://addons/pikafish/nnue/cpu_inference.gd")
+const XIncAccumulator = preload("res://addons/pikafish/nnue/accumulator.gd")
+const XNnueEngine = preload("res://src/test/nnue_test_engine.gd")
+const XBoard = preload("res://addons/pikafish/nnue/board.gd")
 const TestSupport = preload("res://src/test/gut/nnue_test_support.gd")
 
 const BATCH_SIZES = [1, 8, 23, 64, 128, 256, 512]
@@ -146,7 +146,7 @@ func _on_async_batch(
 	_async_done += 1
 
 
-func _measure_breakdown(gpu: XGpuInference, positions: Array) -> Dictionary:
+func _measure_breakdown(gpu, positions: Array) -> Dictionary:
 	var totals := {
 		"features": 0.0, "conversion": 0.0, "upload": 0.0,
 		"accumulator": 0.0, "forward": 0.0, "readback": 0.0,
@@ -235,7 +235,7 @@ static func _make_boards(records: Array, n: int) -> Array:
 	return boards
 
 
-static func _check_oracle(gpu: XGpuInference, boards: Array, records: Array) -> int:
+static func _check_oracle(gpu, boards: Array, records: Array) -> int:
 	var result := gpu.evaluate_batch(boards)
 	var correct := 0
 	for i in range(records.size()):

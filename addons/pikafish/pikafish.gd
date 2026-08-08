@@ -7,7 +7,7 @@ extends RefCounted
 ## GDS-DIVERGENCE: PLATFORM (D001 — migrated)
 ## C++ behavior: single Engine owns Position/NNUE/Search threads.
 ## GDScript replacement: RefCounted facade; NNUE + search in addon.
-## Proof: test_addon_shell.gd + NNUE GUT suite (via deprecated XNnueEngine shim).
+## Proof: test_addon_shell.gd + NNUE GUT suite.
 
 signal search_info(info)
 signal best_move_found(result)
@@ -86,7 +86,7 @@ func initialize(cfg = null) -> Error:
 	return OK
 
 
-## Adopt an already-loaded NNUE loader (compatibility path for XNnueEngine).
+## Adopt an already-loaded NNUE loader (test and tooling integration path).
 func adopt_host_nnue(ld, ft) -> Error:
 	if _initialized:
 		return ERR_ALREADY_IN_USE
@@ -553,7 +553,7 @@ func backend_info() -> Dictionary:
 	}
 
 
-## --- Incremental NNUE board API (used by XNnueEngine wrapper) ---
+## --- Incremental NNUE board API ---
 
 func refresh(pos) -> void:
 	_inc.refresh(pos)

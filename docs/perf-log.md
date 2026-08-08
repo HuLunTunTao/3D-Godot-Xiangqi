@@ -47,7 +47,7 @@ iPad Air 5 / Godot 4.6.1 在 RDShaderFile SPIR-V 加载修复后 facade 选 GPU�
 batch 同步 ~6314 eval/s、异步 ~3916 eval/s（均为 100×23，`bad=0`）。搜索叶子仍为 CPU 增量。
 
 **双路径 API**(见下节 `cf61822`):
-- 搜索 / 连续走子 → `XNnueEngine.refresh` / `do_move` / `undo_move` / `evaluate_incremental`(CPU 增量累加器)
+- 搜索 / 连续走子 → `PikafishEngine.refresh` / `do_move` / `undo_move` / `evaluate_incremental`(CPU 增量累加器)
 - 大批无关局面 → `evaluate_batch`(PSQT 在 GPU,`BATCH_MAX=512`)
 
 ---
@@ -56,7 +56,7 @@ batch 同步 ~6314 eval/s、异步 ~3916 eval/s（均为 100×23，`bad=0`）。
 
 1. NNUE 网络很小(累加器 1024、前向 32/32/1),**逐局面** GPU dispatch+sync(~4 ms)远大于计算本身。
 2. **批量**把调度开销摊薄后,端到端瓶颈回到 GDScript **特征提取**(桶 / 威胁索引)。
-3. GPU 默认可从零重算;`XNnueEngine` 另提供 CPU 增量累加器供搜索。C++ 为增量累加器。
+3. GPU 默认可从零重算;`PikafishEngine` 另提供 CPU 增量累加器供搜索。C++ 为增量累加器。
 4. 不引入 GDExtension 时:搜索优先增量;bulk 评测优先更大 batch + GPU 侧 PSQT。
 
 「特征提取」= GPU 之前的 CPU 工作:桶与镜像、PSQ/威胁活跃索引(攻击生成)。PSQT 求和在 GPU forward 中完成。
@@ -256,7 +256,7 @@ Xcode 16.4 无法链接 Godot 4.7.x iOS 模板，因此真机使用 Godot 4.6.1 
 
 ## 运行时后端 / 无 GPU
 
-对外请使用 `XNnueEngine`(`src/nnue/nnue_engine.gd`):
+对外请使用 `PikafishEngine`(`addons/pikafish/pikafish.gd`):
 
 - 能创建 local `RenderingDevice` → `backend_name == "gpu"`(`XGpuInference`)
 - 否则 → `backend_name == "cpu"`(`XRefInference`),并 `push_warning`

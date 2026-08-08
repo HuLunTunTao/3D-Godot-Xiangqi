@@ -1,7 +1,7 @@
 ## Shared helpers for GUT tests (not a GutTest itself).
-const C = preload("res://src/nnue/nnue_consts.gd")
-const XBoard = preload("res://src/nnue/board.gd")
-const XAttacks = preload("res://src/nnue/attacks.gd")
+const C = preload("res://addons/pikafish/nnue/consts.gd")
+const XBoard = preload("res://addons/pikafish/nnue/board.gd")
+const XAttacks = preload("res://addons/pikafish/nnue/attacks.gd")
 
 
 static func sq(file: int, rank: int) -> int:

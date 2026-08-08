@@ -2,9 +2,9 @@ extends GutTest
 
 ## Feature extraction: fill_active_both vs append_* ; buckets ; PSQT lane.
 
-const C = preload("res://src/nnue/nnue_consts.gd")
-const NNUELoader = preload("res://src/nnue/nnue_loader.gd")
-const XFeatures = preload("res://src/nnue/features.gd")
+const C = preload("res://addons/pikafish/nnue/consts.gd")
+const NNUELoader = preload("res://addons/pikafish/nnue/loader.gd")
+const XFeatures = preload("res://addons/pikafish/nnue/features.gd")
 const S = preload("res://src/test/gut/nnue_test_support.gd")
 
 var loader: NNUELoader

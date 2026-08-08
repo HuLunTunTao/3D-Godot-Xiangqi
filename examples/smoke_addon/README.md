@@ -28,4 +28,4 @@ runs the same headless smoke.
    or `res://data/`.
 3. Enable the Pikafish editor plugin if you need export packing of `.bin` weights.
 4. See `addons/pikafish/README.md` for `initialize` / `set_fen` / `legal_moves` /
-   `start_search` / signals / migration from `XNnueEngine`.
+   `start_search` / signals.

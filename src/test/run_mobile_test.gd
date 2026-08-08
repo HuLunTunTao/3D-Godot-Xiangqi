@@ -3,14 +3,14 @@ extends Node
 ## On-device Mobile renderer acceptance: 100 synchronous and asynchronous
 ## 23-position oracle batches. Prints MOBILE_TEST_PASS only after all callbacks.
 
-const NNUELoader = preload("res://src/nnue/nnue_loader.gd")
-const XFeatures = preload("res://src/nnue/features.gd")
-const XNnueEngine = preload("res://src/nnue/nnue_engine.gd")
-const XBoard = preload("res://src/nnue/board.gd")
+const NNUELoader = preload("res://addons/pikafish/nnue/loader.gd")
+const XFeatures = preload("res://addons/pikafish/nnue/features.gd")
+const XNnueEngine = preload("res://src/test/nnue_test_engine.gd")
+const XBoard = preload("res://addons/pikafish/nnue/board.gd")
 
 const REPS = 100
 
-var _engine: XNnueEngine
+var _engine
 var _boards: Array = []
 var _expected := PackedInt32Array()
 var _async_submitted := 0

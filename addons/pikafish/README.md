@@ -130,24 +130,6 @@ PCK or empty oracle arrays usually means weights were not packed.
 Generate host `data/` with the repo `tools/parse_nnue.py`, `gen_tables.py`, and
 `gen_reference.py` (see root README / `AGENTS.md`).
 
-## Migration from `XNnueEngine`
-
-`XNnueEngine` (`res://src/nnue/nnue_engine.gd`) is a **deprecated** one-version
-wrapper. Other `res://src/nnue/*` files may be thin shims to addon implementations
-during Phase E. New code should use `PikafishEngine` only.
-
-| Old (`XNnueEngine`) | New (`PikafishEngine`) |
-|---|---|
-| `XNnueEngine.new(loader, features)` | `engine.initialize(cfg)` (loads network itself) |
-| `evaluate(board)` | `evaluate_board(board)` or `set_fen` + `evaluate_static()` |
-| `evaluate_batch(boards)` | `evaluate_boards(boards)` / `evaluate_batch(fens)` |
-| `evaluate_batch_async` | same name on facade |
-| `refresh` / `do_move` / `undo_move` / `evaluate_incremental` | same names (incremental board API) |
-| — | `set_fen`, `legal_moves`, `start_search`, `stop_search`, search signals |
-
-Adoption path for existing loaders: `engine.adopt_host_nnue(loader, features)`
-(used by the wrapper). Prefer `initialize` for new call sites.
-
 ## Smoke check
 
 From the host project (Godot 4.7.1):

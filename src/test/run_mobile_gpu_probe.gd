@@ -4,11 +4,11 @@ extends Node
 ## Writes user://gpu_probe_result.json (copied from device Documents).
 ## Does NOT use the old minor-version CPU gate; measures raw GPU vs CPU.
 
-const NNUELoader = preload("res://src/nnue/nnue_loader.gd")
-const XFeatures = preload("res://src/nnue/features.gd")
-const XGpuInference = preload("res://src/nnue/gpu_inference.gd")
-const XRefInference = preload("res://src/nnue/ref_inference.gd")
-const XBoard = preload("res://src/nnue/board.gd")
+const NNUELoader = preload("res://addons/pikafish/nnue/loader.gd")
+const XFeatures = preload("res://addons/pikafish/nnue/features.gd")
+const XGpuInference = preload("res://addons/pikafish/nnue/gpu_inference.gd")
+const XRefInference = preload("res://addons/pikafish/nnue/cpu_inference.gd")
+const XBoard = preload("res://addons/pikafish/nnue/board.gd")
 const PikafishEngineScript = preload("res://addons/pikafish/pikafish.gd")
 const PikafishConfigScript = preload("res://addons/pikafish/config.gd")
 

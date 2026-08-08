@@ -2,10 +2,10 @@ extends SceneTree
 
 ## Focused 1000-iteration do/evaluate/undo benchmark for revision comparisons.
 
-const NNUELoader = preload("res://src/nnue/nnue_loader.gd")
-const XFeatures = preload("res://src/nnue/features.gd")
-const XNnueEngine = preload("res://src/nnue/nnue_engine.gd")
-const XBoard = preload("res://src/nnue/board.gd")
+const NNUELoader = preload("res://addons/pikafish/nnue/loader.gd")
+const XFeatures = preload("res://addons/pikafish/nnue/features.gd")
+const XNnueEngine = preload("res://src/test/nnue_test_engine.gd")
+const XBoard = preload("res://addons/pikafish/nnue/board.gd")
 const TestSupport = preload("res://src/test/gut/nnue_test_support.gd")
 
 
@@ -46,7 +46,7 @@ func _init() -> void:
 	quit()
 
 
-static func _run_once(engine: XNnueEngine, board: XBoard, move: Vector2i) -> void:
+static func _run_once(engine, board: XBoard, move: Vector2i) -> void:
 	engine.do_move(board, move.x, move.y)
 	engine.evaluate_incremental(board)
 	engine.undo_move(board)

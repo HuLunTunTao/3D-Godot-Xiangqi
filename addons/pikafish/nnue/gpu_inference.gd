@@ -1,6 +1,6 @@
 ## GPU (compute-shader) NNUE inference using RenderingDevice.
 ## Accumulator + forward(+PSQT) on GPU; CPU only builds active feature index lists.
-## Prefer PikafishEngine / XNnueEngine for automatic CPU fallback when no RenderingDevice is available.
+## Prefer PikafishEngine for automatic CPU fallback when no RenderingDevice is available.
 
 class_name PikafishGpuInference
 extends RefCounted

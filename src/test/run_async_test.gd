@@ -5,13 +5,13 @@ extends Node
 ##   Godot --path . -s res://src/test/run_async_test_cli.gd
 ## (loads async_test.tscn). Do not pass this Node script to `Godot -s` directly.
 
-const NNUELoader = preload("res://src/nnue/nnue_loader.gd")
-const XFeatures = preload("res://src/nnue/features.gd")
-const XNnueEngine = preload("res://src/nnue/nnue_engine.gd")
-const XBoard = preload("res://src/nnue/board.gd")
+const NNUELoader = preload("res://addons/pikafish/nnue/loader.gd")
+const XFeatures = preload("res://addons/pikafish/nnue/features.gd")
+const XNnueEngine = preload("res://src/test/nnue_test_engine.gd")
+const XBoard = preload("res://addons/pikafish/nnue/board.gd")
 
 var _expected: PackedInt32Array
-var _engine: XNnueEngine
+var _engine
 var _completed := 0
 var _empty_completed := 0
 var _failures := 0

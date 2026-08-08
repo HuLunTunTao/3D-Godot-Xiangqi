@@ -2,8 +2,8 @@ extends GutTest
 
 ## Attack-generation goldens (cannon screen, knight leg, bishop eye, palace, pawn).
 
-const C = preload("res://src/nnue/nnue_consts.gd")
-const XAttacks = preload("res://src/nnue/attacks.gd")
+const C = preload("res://addons/pikafish/nnue/consts.gd")
+const XAttacks = preload("res://addons/pikafish/nnue/attacks.gd")
 const S = preload("res://src/test/gut/nnue_test_support.gd")
 
 

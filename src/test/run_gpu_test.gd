@@ -1,13 +1,13 @@
 extends SceneTree
 
-## Test runner for XNnueEngine (GPU with CPU fallback). Compare to oracle.
+## Test runner for the PikafishEngine NNUE path (GPU with CPU fallback). Compare to oracle.
 ## Usage: godot -s res://src/test/run_gpu_test.gd -- [limit]
 ## Works headless when CPU fallback is used; GPU path still needs a device.
 
-const NNUELoader = preload("res://src/nnue/nnue_loader.gd")
-const XFeatures = preload("res://src/nnue/features.gd")
-const XNnueEngine = preload("res://src/nnue/nnue_engine.gd")
-const XBoard = preload("res://src/nnue/board.gd")
+const NNUELoader = preload("res://addons/pikafish/nnue/loader.gd")
+const XFeatures = preload("res://addons/pikafish/nnue/features.gd")
+const XNnueEngine = preload("res://src/test/nnue_test_engine.gd")
+const XBoard = preload("res://addons/pikafish/nnue/board.gd")
 
 var _logf: FileAccess
 

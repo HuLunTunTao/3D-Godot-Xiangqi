@@ -13,7 +13,7 @@
 
 游戏/产品代码请用 addon 门面 **`PikafishEngine`**(见
 [addons/pikafish/README.md](addons/pikafish/README.md)):有 GPU 走 compute,无
-`RenderingDevice` 时自动回退到纯 GDScript CPU 参考。`XNnueEngine` 已弃用,仅作兼容包装。
+`RenderingDevice` 时自动回退到纯 GDScript CPU 参考。
 两条评测路径:
 
 - **搜索 / 连续走子**:`refresh` → `do_move` / `undo_move` → `evaluate_incremental`(CPU 增量累加器)
@@ -29,23 +29,23 @@ tools/
   gen_tables.py         预计算 ValidBB / PSQOffsets / ThreatOffsets(计数=689/45547 已验证)
   gen_reference.py      用 oracle 对 23 个 FEN 生成参考数据 data/reference.json
   ref_inference.py      Python 参考推理(与 oracle 逐位对齐)
-src/nnue/
+addons/pikafish/nnue/
   nnue_consts.gd        常量/坐标/棋子编码
   board.gd              象棋棋盘 + FEN + do_move/undo_move
   attacks.gd            全棋子攻击生成(车炮马象士将兵,含塞马腿/象眼/炮翻山/过河兵)
   features.gd           PSQ/Threat 索引、桶选择、fill_active_both(活跃列表)
   nnue_loader.gd        权重/表格加载(原始字节 + 按需解码,加载 <100 ms)
-  nnue_engine.gd        对外入口:GPU/CPU + 增量搜索 API
+  pikafish.gd           对外入口:GPU/CPU + 增量搜索 API
   inc_accumulator.gd    CPU 增量特征变换累加器(搜索用)
   ref_inference.gd      纯 GDScript 完整推理(黄金参考 / CPU fallback)
   gpu_inference.gd      RenderingDevice 宿主:逐局面 + 批量(≤512)
-src/shaders/
+addons/pikafish/shaders/
   accumulator.glsl      累加器:活跃特征行求和 → acc[2×1024]
   forward.glsl          前向 + PSQT → eval(含 64 位 sqr_clip)
   accumulator_batch.glsl / forward_batch.glsl  批量版
 src/test/
   run_ref_test.gd       headless:GDScript 参考 vs oracle
-  run_gpu_test.gd       XNnueEngine vs oracle(GPU 或 CPU fallback)
+  run_gpu_test.gd       PikafishEngine vs oracle(GPU 或 CPU fallback)
   bench_gpu.gd          窗口:性能基准(逐局面 + 批量,含 CPU/GPU 拆分)
   gut/                  GUT 测试套件(oracle/特征/攻击/棋盘/增量/GPU 边界)
 docs/
