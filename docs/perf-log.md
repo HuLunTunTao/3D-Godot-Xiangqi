@@ -374,3 +374,17 @@ bash tools/ios_search_time_export.sh   # then install/launch; copy Documents/sea
 - iPad stop latency（100 次）：p50 **32 ms**，p95 **34 ms**，非法 bestmove 为 0。
 - iPad 测试包从当前提交重新导出并安装；`backend=gpu`、NNUE canary `checked=5 bad=0`。
   这仅说明公开推理可用 GPU；搜索叶子仍使用 CPU 增量 NNUE，故 GPU batch 吞吐不应与本表混用。
+
+### 动态时钟时间管理真机验收 — 2026-08-09 (`e0e75dc`)
+
+`PikafishTimeManager` 在时钟模式下不再于固定 optimum 后立即停止：每个完整迭代后按
+评分下跌、最佳着稳定性、根节点工作量和最佳着变化重新计算下一层的 soft target；硬上限
+不变。`movetime_ms` 仍保持精确硬时限语义。
+
+| 设备 / 条件 | wall | depth | nodes | NPS | 最终 soft / hard | best |
+|---|---:|---:|---:|---:|---:|---|
+| iPad Air 5 / iPadOS 18.7.0 / Godot 4.6.1 Mobile；NNUE；`wtime=btime=30000`、无增量 | 3640 ms | 4 | 1550 | 425 | 640 / 4782 ms | b2e2 |
+
+`soft_time_ms=640` 是 depth 4 完成后、针对**下一层**重新计算的目标；此时已超过该目标，
+所以不再启动 depth 5。它不是对已经完成的 3640 ms 搜索的追溯性超时判定。真机报告为
+`SEARCH_TIME_PASS`，failures=0，GPU canary `checked=5 bad=0`；搜索叶子仍为 CPU 增量 NNUE。
