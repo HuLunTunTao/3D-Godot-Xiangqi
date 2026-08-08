@@ -354,3 +354,23 @@ Godot --headless --path . -s res://tools/bench_search_time.gd -- --nnue --write-
 Godot --headless --path . -s res://src/test/run_async_search_test.gd
 bash tools/ios_search_time_export.sh   # then install/launch; copy Documents/search_time_result.json
 ```
+
+### 默认 NNUE 搜索复测 — 2026-08-09 (`f4a58ce`)
+
+本轮将搜索默认评分器切换为 CPU 增量 NNUE。下表是完整 alpha-beta 搜索，节点数包含
+每个搜索叶子的 NNUE 评分；不是公开 GPU batch 的吞吐数据。两端均以起始局面、同一
+`movetime_ms` 预算运行。300 ms 下未完成 depth 1 时返回合法 fallback，标为 `fallback`。
+
+| 设备 / 运行时 | 预算 | wall | 完成 depth | nodes | NPS（约） | 结果 |
+|---|---:|---:|---:|---:|---:|---|
+| M1 Pro / Godot 4.7.1 | 300 ms | 304 ms | 1 | 122 | 401 | b2e2 |
+| M1 Pro / Godot 4.7.1 | 1200 ms | 1207 ms | 3 | 449 | 372 | b2e2 |
+| M1 Pro / Godot 4.7.1 | 2000 ms | 2013 ms | 3 | 790 | 392 | b2e2 |
+| iPad Air 5 (iPad13,16) / iPadOS 18.7.0 / Godot 4.6.1 Mobile | 300 ms | 307 ms | 0 | 72 | 240 | a3a4 (`fallback`) |
+| iPad Air 5 (iPad13,16) / iPadOS 18.7.0 / Godot 4.6.1 Mobile | 1200 ms | 1200 ms | 1 | 387 | 322 | b2e2 |
+| iPad Air 5 (iPad13,16) / iPadOS 18.7.0 / Godot 4.6.1 Mobile | 2000 ms | 2015 ms | 3 | 806 | 400 | b2e2 |
+
+- 桌面 stop latency（20 次）：p50 **30 ms**，p95 **32 ms**。
+- iPad stop latency（100 次）：p50 **32 ms**，p95 **34 ms**，非法 bestmove 为 0。
+- iPad 测试包从当前提交重新导出并安装；`backend=gpu`、NNUE canary `checked=5 bad=0`。
+  这仅说明公开推理可用 GPU；搜索叶子仍使用 CPU 增量 NNUE，故 GPU batch 吞吐不应与本表混用。
