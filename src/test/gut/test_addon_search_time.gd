@@ -81,6 +81,59 @@ func test_clock_inc_movestogo_optimum_maximum() -> void:
 	assert_lte(tm.maximum_ms, with_oh)
 
 
+func test_clock_soft_target_adapts_to_iteration_stability() -> void:
+	var stable = TimeMan.new()
+	stable.init_from_limits({"wtime": 60000, "winc": 1000}, 0, 10)
+	var base: int = stable.soft_target()
+	var stable_target: int = stable.update_after_iteration({
+		"best_previous_average": 0,
+		"best_value": 0,
+		"iter_value": 0,
+		"depth": 6,
+		"last_best_move_depth": 1,
+		"best_move_changes": 0.0,
+		"best_effort_nodes": 1000,
+		"nodes": 10000,
+		"threads": 1,
+	})
+	assert_gt(base, 0)
+	assert_gte(stable_target, 1)
+	assert_lte(stable_target, stable.maximum())
+
+	var unstable = TimeMan.new()
+	unstable.init_from_limits({"wtime": 60000, "winc": 1000}, 0, 10)
+	var unstable_target: int = unstable.update_after_iteration({
+		"best_previous_average": 300,
+		"best_value": -300,
+		"iter_value": -100,
+		"depth": 6,
+		"last_best_move_depth": 6,
+		"best_move_changes": 3.0,
+		"best_effort_nodes": 1000,
+		"nodes": 10000,
+		"threads": 1,
+	})
+	assert_gt(unstable_target, stable_target)
+	assert_lte(unstable_target, unstable.maximum())
+
+
+func test_clock_search_reports_dynamic_soft_and_hard_bounds() -> void:
+	var e = _make_engine()
+	assert_eq(e.start_search({
+		"wtime": 1000,
+		"btime": 1000,
+		"winc": 0,
+		"binc": 0,
+		"sync": true,
+	}), OK)
+	var res = e._last_result
+	assert_true(Types.move_is_ok(res.bestmove))
+	assert_true(e.is_legal(res.bestmove))
+	assert_gt(res.soft_time_ms, 0)
+	assert_gte(res.hard_time_ms, res.soft_time_ms)
+	e.shutdown()
+
+
 func test_immediate_and_repeat_stop_idempotent() -> void:
 	var e = _make_engine()
 	assert_eq(e.start_search({"depth": 99, "sync": false}), OK)

@@ -31,3 +31,6 @@ var incomplete: bool = false
 var revision: int = 0
 ## Static evaluator selected for this search (`nnue` or `material`).
 var evaluation_mode: String = ""
+## Final dynamic soft target and hard time cap used by clock-controlled search.
+var soft_time_ms: int = 0
+var hard_time_ms: int = 0

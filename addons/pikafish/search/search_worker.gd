@@ -51,6 +51,9 @@ var _stable_pv: PackedInt32Array = PackedInt32Array()
 var _from_complete_iteration := false
 var _incomplete := false
 var _stop_reason: String = ""
+## Root-only work statistics consumed by TimeManager after each completed ID step.
+var _root_effort_by_move: Dictionary = {}
+var _root_best_move_changes: int = 0
 
 ## Search stack SoA — continuation bases / currentMove / inCheck (Upstream Stack).
 var ss_cont_base: PackedInt32Array = PackedInt32Array()
@@ -149,6 +152,17 @@ func search(depth_limit: int, node_limit: int = 0) -> Dictionary:
 	requested_depth = depth_limit
 
 	var avg_score: int = T.VALUE_ZERO
+	var iter_values := PackedInt32Array([T.VALUE_ZERO, T.VALUE_ZERO, T.VALUE_ZERO, T.VALUE_ZERO])
+	var iter_index := 0
+	var previous_iteration_best: int = T.MOVE_NONE
+	var last_best_move_depth := 0
+	var total_best_move_changes := 0.0
+	var previous_search_average := T.VALUE_ZERO
+	if time_manager != null and time_manager._state != null and time_manager._state.has_previous_score:
+		avg_score = time_manager._state.best_previous_score
+		previous_search_average = time_manager._state.best_previous_average_score
+		iter_values.fill(avg_score)
+	_root_effort_by_move.clear()
 	for depth in range(1, depth_limit + 1):
 		# Soft stop: do not begin a deeper iteration past optimum.
 		if time_manager != null and time_manager.past_optimum() and completed_depth >= 1:
@@ -157,6 +171,8 @@ func search(depth_limit: int, node_limit: int = 0) -> Dictionary:
 			break
 		if _should_stop():
 			break
+		total_best_move_changes *= 0.5
+		_root_best_move_changes = 0
 		# Snapshot working root best before this iteration; restore if aborted mid-ID.
 		var pre_best: int = best_move
 		var pre_score: int = best_score
@@ -203,8 +219,27 @@ func search(depth_limit: int, node_limit: int = 0) -> Dictionary:
 		if score != T.VALUE_NONE:
 			best_score = score
 			avg_score = score
+			if best_move != previous_iteration_best:
+				last_best_move_depth = depth
+				previous_iteration_best = best_move
+			total_best_move_changes += float(_root_best_move_changes)
+			var previous_iter_value: int = iter_values[iter_index]
+			iter_values[iter_index] = score
+			iter_index = (iter_index + 1) & 3
 			_commit_iteration(depth)
 			_emit_iteration_info(depth)
+			if time_manager != null and time_manager.use_time_management():
+				time_manager.update_after_iteration({
+					"best_previous_average": previous_search_average,
+					"best_value": score,
+					"iter_value": previous_iter_value,
+					"depth": depth,
+					"last_best_move_depth": last_best_move_depth,
+					"best_move_changes": total_best_move_changes,
+					"best_effort_nodes": int(_root_effort_by_move.get(best_move, 0)),
+					"nodes": nodes,
+					"threads": 1,
+				})
 
 		if node_limit > 0 and nodes >= node_limit:
 			if _stop_reason.is_empty():
@@ -217,6 +252,8 @@ func search(depth_limit: int, node_limit: int = 0) -> Dictionary:
 			break
 
 	_finalize_bestmove_or_fallback()
+	if time_manager != null and _from_complete_iteration:
+		time_manager.commit_search_score(best_score)
 	return _result_dict()
 
 
@@ -246,6 +283,8 @@ func _emit_iteration_info(depth: int) -> void:
 		"nodes": nodes,
 		"nps": nps,
 		"time_ms": elapsed,
+		"soft_time_ms": time_manager.soft_target() if time_manager != null else 0,
+		"hard_time_ms": time_manager.maximum() if time_manager != null else 0,
 		"pv": pv.duplicate(),
 		"is_final": false,
 	})
@@ -303,6 +342,8 @@ func _result_dict() -> Dictionary:
 		"completed_depth": completed_depth,
 		"requested_depth": requested_depth,
 		"seldepth": seldepth,
+		"soft_time_ms": time_manager.soft_target() if time_manager != null else 0,
+		"hard_time_ms": time_manager.maximum() if time_manager != null else 0,
 		"from_complete_iteration": _from_complete_iteration,
 		"incomplete": _incomplete,
 		"stop_reason": reason,
@@ -551,6 +592,7 @@ func _search(
 			continue
 		move_count += 1
 		var is_cap: bool = pos.capture(m)
+		var root_nodes_before: int = nodes if root_node else 0
 		var moved_pc: int = pos.moved_piece(m)
 		var captured_pt: int = T.type_of(pos.piece_on(T.to_sq(m))) if is_cap else T.NO_PIECE_TYPE
 		var new_depth: int = depth - 1
@@ -617,6 +659,8 @@ func _search(
 
 		_undo_move_synced(m)
 		ss_current_move[_ss(ply)] = T.MOVE_NONE
+		if root_node:
+			_root_effort_by_move[m] = int(_root_effort_by_move.get(m, 0)) + maxi(0, nodes - root_nodes_before)
 
 		if _should_stop():
 			return alpha
@@ -627,6 +671,8 @@ func _search(
 			if value > alpha:
 				alpha = value
 				if root_node or ply == 0:
+					if root_node and best_move != T.MOVE_NONE and best_move != m:
+						_root_best_move_changes += 1
 					best_move = m
 					pv = PackedInt32Array([m])
 				if alpha >= beta:

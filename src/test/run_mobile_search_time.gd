@@ -76,6 +76,7 @@ func _run() -> void:
 		return
 	_reporter.stage("Loading incremental NNUE search backend")
 	_out["nnue"] = await _bench_leaf(true)
+	_out["nnue_clock"] = await _bench_nnue_clock()
 
 	_out["failures"] = _failures
 	_out["marker"] = "SEARCH_TIME_PASS" if _failures == 0 else "SEARCH_TIME_FAIL"
@@ -169,6 +170,49 @@ func _bench_leaf(use_nnue: bool) -> Dictionary:
 		_fail("illegal bestmoves=%d" % illegal)
 	_reporter.metric("%s_stop_p95_ms" % ("nnue" if use_nnue else "material"), p95)
 	_reporter.report_log("%s stop: p50=%dms p95=%dms illegal=%d" % ["NNUE" if use_nnue else "Material", p50, p95, illegal])
+	return section
+
+
+func _bench_nnue_clock() -> Dictionary:
+	## Exercises the official-style dynamic soft target, distinct from movetime.
+	var section := {"wtime_ms": 30000, "winc_ms": 0}
+	_reporter.stage("NNUE clock time management", 1)
+	if _engine.set_fen(START) != OK:
+		_fail("set_fen clock")
+		return section
+	var t0: int = Time.get_ticks_msec()
+	if _engine.start_search({
+		"wtime": 30000,
+		"btime": 30000,
+		"winc": 0,
+		"binc": 0,
+		"sync": true,
+	}) != OK:
+		_fail("clock start")
+		return section
+	var res = _engine._last_result
+	section.merge({
+		"wall_ms": Time.get_ticks_msec() - t0,
+		"depth": res.completed_depth if res != null else 0,
+		"nodes": res.nodes if res != null else 0,
+		"nps": res.nps if res != null else 0,
+		"soft_time_ms": res.soft_time_ms if res != null else 0,
+		"hard_time_ms": res.hard_time_ms if res != null else 0,
+		"bestmove": _engine.move_to_uci(res.bestmove) if res != null else "",
+	})
+	if res == null or not Types.move_is_ok(res.bestmove) or not _engine.is_legal(res.bestmove):
+		_fail("clock bestmove")
+	elif res.soft_time_ms <= 0 or res.hard_time_ms < res.soft_time_ms:
+		_fail("clock bounds")
+	_reporter.progress(1, 1, "depth %d · soft/hard %d/%d ms" % [
+		section["depth"], section["soft_time_ms"], section["hard_time_ms"]
+	])
+	_reporter.metric("nnue_clock_soft_ms", section["soft_time_ms"])
+	_reporter.metric("nnue_clock_hard_ms", section["hard_time_ms"])
+	_reporter.report_log("NNUE clock: depth=%d soft=%d hard=%d" % [
+		section["depth"], section["soft_time_ms"], section["hard_time_ms"]
+	])
+	await get_tree().process_frame
 	return section
 
 

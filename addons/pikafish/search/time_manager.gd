@@ -18,6 +18,17 @@ var maximum_ms: int = 0
 var move_overhead_ms: int = 10
 ## Persists across searches for basetime optScale adjust (Upstream originalTimeAdjust).
 var original_time_adjust: float = -1.0
+## Dynamic soft target after a completed ID iteration. Hard maximum remains fixed.
+var soft_target_ms: int = 0
+var previous_time_reduction: float = 1.0
+var _state = null  ## PikafishSearchTimeState, optional for direct test users.
+
+
+func attach_state(state) -> void:
+	_state = state
+	if _state != null:
+		original_time_adjust = _state.original_time_adjust
+		previous_time_reduction = _state.previous_time_reduction
 
 
 func init_from_limits(limits, side_to_move: int = 0, ply: int = 0) -> void:
@@ -29,6 +40,7 @@ func init_from_limits(limits, side_to_move: int = 0, ply: int = 0) -> void:
 	ponder = false
 	optimum_ms = 0
 	maximum_ms = 0
+	soft_target_ms = 0
 	if limits == null:
 		return
 	var time_ms := PackedInt32Array([0, 0])
@@ -74,6 +86,7 @@ func init_from_limits(limits, side_to_move: int = 0, ply: int = 0) -> void:
 	if movetime_ms > 0:
 		optimum_ms = movetime_ms
 		maximum_ms = movetime_ms
+		soft_target_ms = optimum_ms
 		return
 
 	var us: int = clampi(side_to_move, 0, 1)
@@ -127,6 +140,9 @@ func init_from_limits(limits, side_to_move: int = 0, ply: int = 0) -> void:
 	# Upstream: options["Ponder"] adds 25% to optimum. We honour limits.ponder.
 	if ponder:
 		optimum_ms += optimum_ms / 4
+	soft_target_ms = optimum_ms
+	if _state != null:
+		_state.original_time_adjust = original_time_adjust
 
 
 func use_time_management() -> bool:
@@ -148,6 +164,57 @@ func optimum() -> int:
 
 func maximum() -> int:
 	return maximum_ms
+
+
+func soft_target() -> int:
+	return soft_target_ms
+
+
+func update_after_iteration(stats: Dictionary) -> int:
+	## Upstream Search::Worker::iterative_deepening time multiplier. `stats` is
+	## deliberately scalar so SearchWorker remains independent from UI/Engine.
+	if not use_time_management() or ponder:
+		return soft_target_ms
+	var best_previous_average: float = float(stats.get("best_previous_average", 0))
+	var best_value: float = float(stats.get("best_value", 0))
+	var iter_value: float = float(stats.get("iter_value", best_value))
+	var falling_eval := (16.93 + 2.73 * (best_previous_average - best_value)
+		+ 0.8 * (iter_value - best_value)) / 100.0
+	falling_eval = clampf(falling_eval, 0.610, 1.860)
+
+	var root_depth: float = float(stats.get("depth", 1))
+	var last_best_depth: float = float(stats.get("last_best_move_depth", 0))
+	# Exact linear interpolation used by current upstream around [8, 17].
+	var t := clampf((root_depth - last_best_depth - 8.0) / 9.0, 0.0, 1.0)
+	var time_reduction := clampf(0.670 + (1.440 - 0.670) * t, 0.670, 1.440)
+	var reduction := (2.100 + previous_time_reduction) / (2.480 * time_reduction)
+
+	var threads: float = maxf(1.0, float(stats.get("threads", 1)))
+	var changes: float = float(stats.get("best_move_changes", 0.0))
+	var instability := 0.960 + 1.630 * changes / threads
+	var total_nodes: float = maxf(1.0, float(stats.get("nodes", 1)))
+	var effort: float = float(stats.get("best_effort_nodes", 0)) * 100000.0 / total_nodes
+	var e := clampf((effort - 78000.0) / 16000.0, 0.0, 1.0)
+	var high_effort := 0.960 + (0.740 - 0.960) * e
+
+	soft_target_ms = clampi(
+		int(float(optimum_ms) * falling_eval * reduction * instability * high_effort),
+		1, maximum_ms
+	)
+	previous_time_reduction = time_reduction
+	if _state != null:
+		_state.previous_time_reduction = previous_time_reduction
+	return soft_target_ms
+
+
+func commit_search_score(score: int) -> void:
+	if _state == null:
+		return
+	_state.best_previous_score = score
+	# RootMove's true EMA is not available in the compact GDS root picker yet;
+	# the completed root score is the conservative equivalent until it is ported.
+	_state.best_previous_average_score = score
+	_state.has_previous_score = true
 
 
 ## True when search must stop for time / nodes (depth checked by iterative loop).
@@ -172,4 +239,4 @@ func should_stop(nodes: int, stop_flag: bool) -> bool:
 func past_optimum() -> bool:
 	if ponder:
 		return false
-	return optimum_ms > 0 and elapsed_ms() >= optimum_ms
+	return soft_target_ms > 0 and elapsed_ms() >= soft_target_ms

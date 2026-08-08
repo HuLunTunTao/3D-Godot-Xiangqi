@@ -5,7 +5,8 @@ extends RefCounted
 ## Prefer Dictionary form for game callers, e.g.:
 ##   engine.start_search({"movetime_ms": 1200})
 ## Supported keys (Dictionary or these fields): movetime_ms/movetime,
-## wtime, btime, winc, binc, movestogo, depth, nodes, infinite, ponder, sync.
+## wtime, btime, winc, binc, movestogo, move_overhead_ms, depth, nodes,
+## infinite, ponder, sync.
 
 var depth: int = 0
 var nodes: int = 0
@@ -16,6 +17,8 @@ var movestogo: int = 0
 var mate: int = 0
 var infinite: bool = false
 var ponder: bool = false
+## Account for UI / animation / transport delay before the clock hard cap.
+var move_overhead_ms: int = 10
 ## When true, start_search blocks until done (GUT / smoke / tools).
 ## null / unset → async (game-default).
 var sync = null

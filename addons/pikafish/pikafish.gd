@@ -35,6 +35,7 @@ const NnueEvaluatorScript = preload("res://addons/pikafish/search/nnue_evaluator
 const TTScript = preload("res://addons/pikafish/search/tt.gd")
 const ResultScript = preload("res://addons/pikafish/search/result.gd")
 const TimeManScript = preload("res://addons/pikafish/search/time_manager.gd")
+const TimeStateScript = preload("res://addons/pikafish/search/time_state.gd")
 const InfoScript = preload("res://addons/pikafish/search/info.gd")
 const LimitsScript = preload("res://addons/pikafish/search/limits.gd")
 const PositionViewScript = preload("res://addons/pikafish/core/position_view.gd")
@@ -66,6 +67,7 @@ var _canary_detail: String = ""
 var _tt = null
 var _worker = null
 var _history = null
+var _time_state = TimeStateScript.new()
 var _last_result = null
 var _search_thread: Thread = null
 var _search_stop := false
@@ -434,7 +436,8 @@ func start_search(limits) -> Error:
 	## Start iterative-deepening search.
 	## Recommended (game layer, async by default):
 	##   engine.start_search({"movetime_ms": 1200})
-	## Also accepts wtime/btime/winc/binc/movestogo, depth, nodes, infinite, ponder.
+	## Also accepts wtime/btime/winc/binc/movestogo/move_overhead_ms, depth,
+	## nodes, infinite, ponder. Clock controls use dynamic soft/hard time bounds.
 	## Pass sync:true only for tests/tools that must block the caller.
 	if not _initialized:
 		return ERR_UNCONFIGURED
@@ -532,6 +535,7 @@ func _normalize_limits(limits) -> Dictionary:
 			infinite = limits.infinite
 			ponder = limits.ponder
 			movestogo = limits.movestogo
+			move_overhead_ms = limits.move_overhead_ms
 			if limits.time_ms.size() > 0:
 				wtime = int(limits.time_ms[0])
 			if limits.time_ms.size() > 1:
@@ -628,6 +632,7 @@ func _run_search_job(packed: Dictionary, on_thread: bool) -> Dictionary:
 		worker.enable_probcut = config.enable_probcut
 		worker.enable_singular = config.enable_singular
 	var tm = TimeManScript.new()
+	tm.attach_state(_time_state)
 	tm.init_from_limits(packed, worker.pos.side_to_move if worker.pos != null else 0, worker.pos.game_ply if worker.pos != null else 0)
 	worker.time_manager = tm
 	if _search_stop:
@@ -680,6 +685,8 @@ func _finish_search(raw: Dictionary, gen: int) -> void:
 	_last_result.incomplete = bool(raw.get("incomplete", false))
 	_last_result.revision = revision
 	_last_result.evaluation_mode = str(raw.get("evaluation_mode", ""))
+	_last_result.soft_time_ms = int(raw.get("soft_time_ms", 0))
+	_last_result.hard_time_ms = int(raw.get("hard_time_ms", 0))
 	_emit_search_info({
 		"depth": _last_result.depth,
 		"seldepth": _last_result.seldepth,
@@ -687,6 +694,8 @@ func _finish_search(raw: Dictionary, gen: int) -> void:
 		"nodes": _last_result.nodes,
 		"nps": _last_result.nps,
 		"time_ms": _last_result.time_ms,
+		"soft_time_ms": _last_result.soft_time_ms,
+		"hard_time_ms": _last_result.hard_time_ms,
 		"pv": _last_result.pv,
 	}, true, gen, revision)
 	_searching = false
@@ -706,6 +715,8 @@ func _emit_search_info(info_dict: Dictionary, is_final: bool, gen: int = -1, rev
 	info.nodes = int(info_dict.get("nodes", 0))
 	info.nps = int(info_dict.get("nps", 0))
 	info.time_ms = int(info_dict.get("time_ms", 0))
+	info.soft_time_ms = int(info_dict.get("soft_time_ms", 0))
+	info.hard_time_ms = int(info_dict.get("hard_time_ms", 0))
 	info.pv = info_dict.get("pv", PackedInt32Array())
 	info.revision = _position_revision if revision < 0 else revision
 	info.is_final = is_final

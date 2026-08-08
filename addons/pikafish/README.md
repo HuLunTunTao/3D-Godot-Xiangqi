@@ -127,8 +127,8 @@ engine.start_search({"depth": 4, "sync": true})
 
 | Signal | Payload | When |
 |---|---|---|
-| `search_info(info)` | `PikafishSearchInfo` | Each completed ID iteration (`is_final=false`) and once with the final summary (`is_final=true`) |
-| `best_move_found(result)` | `PikafishSearchResult` | Once per search: `bestmove`, `score`, `nodes`, `completed_depth`, `evaluation_mode`, `stop_reason`, `from_complete_iteration`, … |
+| `search_info(info)` | `PikafishSearchInfo` | Each completed ID iteration (`is_final=false`) and once with the final summary (`is_final=true`); clock search includes `soft_time_ms` / `hard_time_ms` |
+| `best_move_found(result)` | `PikafishSearchResult` | Once per search: `bestmove`, `score`, `nodes`, `completed_depth`, `evaluation_mode`, `soft_time_ms`, `hard_time_ms`, `stop_reason`, `from_complete_iteration`, … |
 | `backend_changed(name, reason)` | `String`, `String` | GPU/CPU selection or fallback |
 | `position_changed(snapshot, move_info)` | `PikafishPositionView`, `PikafishMoveInfo?` | Every accepted `set_fen`, new game, move, undo, or redo |
 
@@ -138,6 +138,11 @@ for diagnostics or constrained benchmarks. `use_nnue_eval` remains a compatibili
 switch when `evaluation_mode` is empty. GPU is used for public `evaluate_batch` /
 async batch only — not for alpha-beta leaves (do not treat batch eval/s as search
 speedup).
+
+**对局时钟：**推荐传入 `wtime`、`btime`、`winc`、`binc` 与可选 `movestogo`，而不是
+固定深度。搜索每完成一层会更新 `soft_time_ms`，评分下跌或最佳着不稳定时会延长思考；
+`hard_time_ms` 始终是不可越过的上限。`move_overhead_ms`（默认 10）应包含 UI 动画或
+通信延迟。
 
 ## Data packing (export)
 

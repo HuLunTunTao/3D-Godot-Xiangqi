@@ -25,8 +25,8 @@ Status legend: `todo` · `stub` · `partial` · `done` · `n/a`
 | `tt.*` | `addons/pikafish/search/tt.gd` | partial | SoA ClusterSize=3 |
 | `history.h` | `addons/pikafish/search/history.gd` | done | Butterfly/LowPly/Capture/PieceTo/Correction + Continuation[2][2]/PawnHistory/UnifiedCorrection (lazy PackedArray); gravity |
 | `movepick.*` | `addons/pikafish/search/move_picker.gd` | done | Main/evasion/qsearch/probcut stages; SEE good/bad; skip_quiet; quiet score: threat/check/pawn/cont[0..3,5] |
-| `search.*` | `addons/pikafish/search/search_worker.gd`, `reductions.gd` | partial | PVS + ID + qsearch; contHist stack + update_quiet continuation/pawn; ProbCut/singular flags default off; material leaf default; opt-in NNUE uses a do/undo-synchronised incremental accumulator (D006). Narrow NNUE soft parity: startpos+3 FENs depth 1–5 |
-| `timeman.*` | `addons/pikafish/search/time_manager.gd` | done | movetime hard cap; clock/inc/movestogo optimum–maximum; Move Overhead; ponder +25% optimum; node limit; soft stop at ID boundaries |
+| `search.*` | `addons/pikafish/search/search_worker.gd`, `reductions.gd` | partial | PVS + ID + qsearch; contHist stack + update_quiet continuation/pawn; ProbCut/singular flags default off; CPU incremental NNUE leaf default (D006). Narrow NNUE soft parity: startpos+3 FENs depth 1–5 |
+| `timeman.*` | `addons/pikafish/search/time_manager.gd`, `time_state.gd` | partial | movetime hard cap; clock/inc/movestogo optimum–maximum; Move Overhead; ponder +25% optimum; node limit; after-ID falling-eval / best-move stability / root-effort / instability soft-target multiplier. RootMove EMA remains a compact-score proxy. |
 | `thread.*` | facade + one Thread | done | `start_search` async by default; `sync:true` for tests; per-iteration `search_info` + single `best_move_found` on main thread; reusable History |
 | `uci.*` | optional later | n/a | Core API is not text-protocol |
 
