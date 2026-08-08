@@ -493,6 +493,11 @@ func _tt_probe() -> Dictionary:
 	return tt.probe(pos.key())
 
 
+func _value_draw() -> int:
+	## Upstream search.cpp value_draw(nodes): break 3-fold blindness with ±1 noise.
+	return T.VALUE_DRAW - 1 + (nodes & 0x2)
+
+
 func _search(
 	node_type: int,
 	depth: int,
@@ -515,9 +520,11 @@ func _search(
 	if _maybe_check_stop():
 		return alpha
 
+	# Upstream Step 2: rule_judge claim → DRAW uses value_draw(nodes).
 	var rj: Dictionary = pos.rule_judge(ply)
 	if rj.get("claimed", false):
-		return int(rj["value"])
+		var rj_value: int = int(rj["value"])
+		return _value_draw() if rj_value == T.VALUE_DRAW else rj_value
 
 	if depth <= 0:
 		return _qsearch(pv_node, alpha, beta, ply)
