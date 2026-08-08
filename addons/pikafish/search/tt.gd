@@ -151,9 +151,17 @@ func write(
 				depth8[write_index] = maxi(depth8[write_index] - 1, 0)
 
 
+func penalize(write_index: int, penalty: int) -> void:
+	## Upstream: Pikafish 2c5c998c, src/tt.cpp, TTWriter::penalize
+	## Decrement stored depth8; clamp at 0 (unoccupied).
+	depth8[write_index] = maxi(int(depth8[write_index]) - penalty, 0)
+
+
 static func value_to_tt(v: int, ply: int) -> int:
-	## Upstream value_to_tt
-	if v == T.VALUE_NONE:
+	## Upstream: Pikafish 2c5c998c, src/search.cpp, value_to_tt
+	## Adjust mate from root-relative to position-relative before TT store.
+	## Guard VALUE_NONE: is_win(VALUE_NONE) is true numerically; upstream asserts is_valid.
+	if not T.is_valid_value(v):
 		return v
 	if T.is_win(v):
 		return v + ply
@@ -162,12 +170,19 @@ static func value_to_tt(v: int, ply: int) -> int:
 	return v
 
 
-static func value_from_tt(v: int, ply: int, r50: int) -> int:
-	## Upstream value_from_tt (simplified without 50-move mate clamp edge cases first)
-	if v == T.VALUE_NONE:
-		return v
+static func value_from_tt(v: int, ply: int, r60c: int) -> int:
+	## Upstream: Pikafish 2c5c998c, src/search.cpp, value_from_tt
+	## Inverse of value_to_tt, plus rule60 fake-mate downgrade (120 - r60c).
+	if not T.is_valid_value(v):
+		return T.VALUE_NONE
 	if T.is_win(v):
+		# Downgrade a potentially false mate score
+		if T.VALUE_MATE - v > 120 - r60c:
+			return T.VALUE_MATE_IN_MAX_PLY - 1
 		return v - ply
 	if T.is_loss(v):
+		# Downgrade a potentially false mate score
+		if T.VALUE_MATE + v > 120 - r60c:
+			return T.VALUE_MATED_IN_MAX_PLY + 1
 		return v + ply
 	return v
