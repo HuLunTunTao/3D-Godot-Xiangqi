@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://d3guxmih5fcif"
+path="res://.godot/imported/forward.glsl-4ace1fa0ea7e5170dc69d8f32cb3d2bc.res"
+
+[deps]
+
+source_file="res://addons/pikafish/shaders/forward.glsl"
+dest_files=["res://.godot/imported/forward.glsl-4ace1fa0ea7e5170dc69d8f32cb3d2bc.res"]
+
+[params]
+

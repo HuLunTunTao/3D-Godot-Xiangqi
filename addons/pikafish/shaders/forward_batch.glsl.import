@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://dfftilsqlql62"
+path="res://.godot/imported/forward_batch.glsl-44fabe11596d06d280d58267fb7c13c1.res"
+
+[deps]
+
+source_file="res://addons/pikafish/shaders/forward_batch.glsl"
+dest_files=["res://.godot/imported/forward_batch.glsl-44fabe11596d06d280d58267fb7c13c1.res"]
+
+[params]
+

@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://bo1pw60rbjgsm"
+path="res://.godot/imported/accumulator.glsl-4409eab35a88c27a99d3c8a114ef7abf.res"
+
+[deps]
+
+source_file="res://addons/pikafish/shaders/accumulator.glsl"
+dest_files=["res://.godot/imported/accumulator.glsl-4409eab35a88c27a99d3c8a114ef7abf.res"]
+
+[params]
+
