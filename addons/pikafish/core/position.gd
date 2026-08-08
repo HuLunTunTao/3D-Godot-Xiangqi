@@ -10,6 +10,7 @@ const A = preload("res://addons/pikafish/core/attacks.gd")
 const Z = preload("res://addons/pikafish/core/zobrist.gd")
 const StateStack = preload("res://addons/pikafish/core/state_stack.gd")
 const Rules = preload("res://addons/pikafish/core/rules.gd")
+const MG = preload("res://addons/pikafish/core/movegen.gd")
 
 var board: PackedByteArray = PackedByteArray()
 ## by_type[pt] = [lo, hi]; by_color[c] = [lo, hi]
@@ -677,6 +678,7 @@ func legal(m: int) -> bool:
 
 
 func pseudo_legal(m: int) -> bool:
+	## Upstream: Position::pseudo_legal
 	if not T.move_is_ok(m):
 		return false
 	var frm := T.from_sq(m)
@@ -692,42 +694,56 @@ func pseudo_legal(m: int) -> bool:
 	if pt == T.PAWN:
 		attacks = A.attacks_bb_pawn(side_to_move, frm)
 	elif pt == T.CANNON:
-		# captures via cannon attacks ∩ opp; quiets via rook attacks ∩ empty
+		# Upstream: CANNON quiet uses rook attacks; capture uses cannon attacks
 		if board[to] != T.NO_PIECE:
 			attacks = A.attacks_bb(T.CANNON, frm, occ[0], occ[1])
 		else:
 			attacks = A.attacks_bb(T.ROOK, frm, occ[0], occ[1])
 	else:
 		attacks = A.attacks_bb(pt, frm, occ[0], occ[1])
-	return BB.test_bit(attacks[0], attacks[1], to)
+	if not BB.test_bit(attacks[0], attacks[1], to):
+		return false
+	# Upstream: if checkers(), require MoveList<EVASIONS>.contains(m)
+	var chk := checkers()
+	if chk[0] != 0 or chk[1] != 0:
+		var buf := PackedInt32Array()
+		buf.resize(T.MAX_MOVES)
+		var n: int = MG.generate(self, MG.GEN_EVASIONS, buf)
+		for i in range(n):
+			if buf[i] == m:
+				return true
+		return false
+	return true
 
 
 func gives_check(m: int) -> bool:
-	## Approximate via checkSquares + discovery; sufficient for do_move check10.
+	## Upstream: Position::gives_check (incl. cannon ray_pass_bb special case)
 	var frm := T.from_sq(m)
 	var to := T.to_sq(m)
+	var ksq: int = king_square(T.flip_color(side_to_move))
 	var pt: int = T.type_of(board[frm])
 	var i := st()
-	if BB.test_bit(stack.check_sq_lo[pt][i], stack.check_sq_hi[pt][i], to):
+
+	# Direct check — hollow-cannon capture beyond self uses rook check_squares + ray_pass_bb
+	if (
+		pt == T.CANNON
+		and BB.test_bit(stack.check_sq_lo[T.ROOK][i], stack.check_sq_hi[T.ROOK][i], frm)
+		and A.aligned(frm, to, ksq)
+	):
+		if capture(m):
+			var ray: Array = A.ray_pass_bb(ksq, frm)
+			if BB.test_bit(ray[0], ray[1], to):
+				return true
+	elif BB.test_bit(stack.check_sq_lo[pt][i], stack.check_sq_hi[pt][i], to):
 		return true
-	# Discovery / king line — slow fallback
-	var us := side_to_move
-	var captured := board[to]
-	var moved := board[frm]
-	board[frm] = T.NO_PIECE
-	board[to] = moved
-	var occ := BB.clear_bit(pieces_all()[0], pieces_all()[1], frm)
-	occ = BB.set_bit(occ[0], occ[1], to)
-	# pieces_all still old — rebuild occ already. checkers_to uses piece bitboards though.
-	# Force use of attackers with explicit occ only for checkers_to path that uses attacks with occ.
-	# Rebuild bitboards briefly is safer:
-	board[frm] = moved
-	board[to] = captured
-	# Cheap: if moving from line of enemy king
-	var ksq := king_square(T.flip_color(us))
-	if A.aligned(frm, to, ksq) or A.aligned(frm, ksq, to):
+
+	# Discovered check — Upstream: blockers_for_king(~us) & from
+	var blockers: Array = blockers_for_king(T.flip_color(side_to_move))
+	if BB.test_bit(blockers[0], blockers[1], frm) and (
+		not A.aligned(frm, to, ksq) or capture(m)
+	):
 		return true
-	return BB.test_bit(stack.check_sq_lo[pt][i], stack.check_sq_hi[pt][i], to)
+	return false
 
 
 func do_move(m: int) -> void:
@@ -754,16 +770,34 @@ func do_move(m: int) -> void:
 	stack.captured_piece[nxt] = captured
 
 	var k: int = stack.key[prev] ^ Z.side_key()
-	stack.plies_from_null[nxt] = stack.plies_from_null[prev] + 1
-	stack.rule60[nxt] = stack.rule60[prev] + 1
+
+	# Upstream: Position::do_move — gamePly / check10 / rule60
+	# Clamp to 10 checks per side; capture resets below. Pawn moves do NOT reset rule60.
+	game_ply += 1
+	var enter_counters := true
 	if gives:
 		if us == T.COLOR_WHITE:
-			stack.check10_w[nxt] = stack.check10_w[prev] + 1
+			stack.check10_w[nxt] = stack.check10_w[nxt] + 1
+			enter_counters = stack.check10_w[nxt] <= 10
 		else:
-			stack.check10_b[nxt] = stack.check10_b[prev] + 1
-	# Reset rule60 on pawn/capture
-	if T.type_of(pc) == T.PAWN or captured != T.NO_PIECE:
-		stack.rule60[nxt] = 0
+			stack.check10_b[nxt] = stack.check10_b[nxt] + 1
+			enter_counters = stack.check10_b[nxt] <= 10
+	if enter_counters:
+		var opp_c10: int = (
+			stack.check10_b[nxt] if us == T.COLOR_WHITE else stack.check10_w[nxt]
+		)
+		var prev_in_check: bool = (
+			stack.checkers_lo[prev] != 0 or stack.checkers_hi[prev] != 0
+		)
+		if opp_c10 > 10 and prev_in_check:
+			# Upstream: ++st->check10[~sideToMove] when opponent already over 10
+			if us == T.COLOR_WHITE:
+				stack.check10_b[nxt] = stack.check10_b[nxt] + 1
+			else:
+				stack.check10_w[nxt] = stack.check10_w[nxt] + 1
+		else:
+			stack.rule60[nxt] = stack.rule60[nxt] + 1
+	stack.plies_from_null[nxt] = stack.plies_from_null[prev] + 1
 
 	if captured != T.NO_PIECE:
 		_remove_piece(to)
@@ -783,6 +817,10 @@ func do_move(m: int) -> void:
 					stack.major_material_b[nxt] -= T.PIECE_VALUE[captured]
 				if cpt != T.ROOK:
 					stack.minor_piece_key[nxt] ^= Z.psq_key(captured, to)
+		# Upstream: st->check10[WHITE] = st->check10[BLACK] = st->rule60 = 0
+		stack.check10_w[nxt] = 0
+		stack.check10_b[nxt] = 0
+		stack.rule60[nxt] = 0
 
 	_move_piece(frm, to)
 	k ^= Z.psq_key(pc, frm) ^ Z.psq_key(pc, to)
@@ -797,7 +835,6 @@ func do_move(m: int) -> void:
 			stack.minor_piece_key[nxt] ^= Z.psq_key(pc, frm) ^ Z.psq_key(pc, to)
 
 	side_to_move = them
-	game_ply += 1
 	stack.key[nxt] = k
 	var chk := checkers_to(us, king_square(them))
 	stack.checkers_lo[nxt] = chk[0]
@@ -822,6 +859,7 @@ func undo_move(m: int) -> void:
 
 
 func do_null_move() -> void:
+	## Upstream: Position::do_null_move — does NOT increment gamePly or rule60
 	var prev_key: int = stack.key[st()]
 	var prev_slot: int = prev_key & ((1 << 14) - 1)
 	filter[prev_slot] = mini(int(filter[prev_slot]) + 1, 255)
@@ -833,18 +871,17 @@ func do_null_move() -> void:
 	stack.key[nxt] = stack.key[prev] ^ Z.side_key()
 	stack.move[nxt] = T.MOVE_NULL
 	stack.captured_piece[nxt] = T.NO_PIECE
-	stack.rule60[nxt] = stack.rule60[prev] + 1
+	# rule60 stays as copied; game_ply unchanged
 	stack.plies_from_null[nxt] = 0
 	side_to_move = T.flip_color(side_to_move)
-	game_ply += 1
 	stack.checkers_lo[nxt] = 0
 	stack.checkers_hi[nxt] = 0
 	_set_check_info()
 
 
 func undo_null_move() -> void:
+	## Upstream: Position::undo_null_move — gamePly untouched
 	side_to_move = T.flip_color(side_to_move)
-	game_ply -= 1
 	stack.ply -= 1
 	var slot: int = stack.key[st()] & ((1 << 14) - 1)
 	if filter[slot] > 0:
