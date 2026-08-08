@@ -339,14 +339,15 @@ func _search_root(depth: int, alpha: int, beta: int) -> int:
 				value = -_search(NODE_PV, depth - 1, -beta, -alpha, 1, false)
 		var child_pv: PackedInt32Array = _pv_stack[1].duplicate()
 		_undo_move_synced(move)
-		root_move.effort += maxi(0, nodes - before)
-		_root_effort_by_move[move] = int(_root_effort_by_move.get(move, 0)) + maxi(0, nodes - before)
+		var searched_nodes: int = maxi(0, nodes - before)
+		root_move.effort += searched_nodes
+		_root_effort_by_move[move] = int(_root_effort_by_move.get(move, 0)) + searched_nodes
 		if _should_stop():
 			return alpha
 		if value > best_value:
 			best_value = value
 		if move_count == 1 or value > alpha:
-			root_move.set_score(value, alpha0, beta, child_pv, seldepth)
+			root_move.set_score(value, alpha0, beta, child_pv, seldepth, searched_nodes)
 			if value > alpha:
 				if best_move != T.MOVE_NONE and best_move != move:
 					_root_best_move_changes += 1

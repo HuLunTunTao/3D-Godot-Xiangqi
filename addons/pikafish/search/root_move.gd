@@ -37,9 +37,14 @@ func begin_iteration(exact: bool = true) -> void:
 	score_upperbound = false
 
 
-func set_score(value: int, alpha: int, beta: int, child_pv: PackedInt32Array, depth: int) -> void:
-	var n: int = maxi(1, effort)
-	var weight: int = clampi((32 * n * 2) / (n * 2 + 3 * maxi(1, effort)), 12, 24)
+func set_score(
+	value: int, alpha: int, beta: int, child_pv: PackedInt32Array, depth: int, searched_nodes: int
+) -> void:
+	# Upstream uses N for this visit and E_prev for all prior visits, rather
+	# than treating total effort as a fixed-size rolling window.
+	var n: int = maxi(1, searched_nodes)
+	var previous_effort: int = maxi(1, effort - n)
+	var weight: int = clampi((32 * n * 2) / (n * 2 + 3 * previous_effort), 12, 24)
 	var square_weight: int = mini(weight, 16)
 	var v2: int = value * absi(value)
 	if average_score == -T.VALUE_INFINITE:
