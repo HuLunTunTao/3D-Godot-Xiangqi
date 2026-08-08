@@ -1,0 +1,4939 @@
+{
+  "format": "godot-pikafish-attacks-parity/v1",
+  "upstream_sha": "2c5c998c211d524d26c38e7e3e71d51bc24cbe64",
+  "notes": "Dual-track: core/attacks.gd (bitboard) vs nnue/attacks.gd (occ90). Do not merge implementations. Query tables are core-only.",
+  "attack_cases": [
+    {
+      "label": "rook_empty_0",
+      "pt": 1,
+      "sq": 0,
+      "occ": [],
+      "attacks": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        18,
+        27,
+        36,
+        45,
+        54,
+        63,
+        72,
+        81
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "cannon_empty_0",
+      "pt": 3,
+      "sq": 0,
+      "occ": [],
+      "attacks": [],
+      "tracks": "both"
+    },
+    {
+      "label": "knight_empty_0",
+      "pt": 5,
+      "sq": 0,
+      "occ": [],
+      "attacks": [
+        11,
+        19
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "bishop_empty_0",
+      "pt": 6,
+      "sq": 0,
+      "occ": [],
+      "attacks": [
+        20
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "rook_empty_4",
+      "pt": 1,
+      "sq": 4,
+      "occ": [],
+      "attacks": [
+        0,
+        1,
+        2,
+        3,
+        5,
+        6,
+        7,
+        8,
+        13,
+        22,
+        31,
+        40,
+        49,
+        58,
+        67,
+        76,
+        85
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "cannon_empty_4",
+      "pt": 3,
+      "sq": 4,
+      "occ": [],
+      "attacks": [],
+      "tracks": "both"
+    },
+    {
+      "label": "knight_empty_4",
+      "pt": 5,
+      "sq": 4,
+      "occ": [],
+      "attacks": [
+        11,
+        15,
+        21,
+        23
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "bishop_empty_4",
+      "pt": 6,
+      "sq": 4,
+      "occ": [],
+      "attacks": [
+        20,
+        24
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "rook_empty_40",
+      "pt": 1,
+      "sq": 40,
+      "occ": [],
+      "attacks": [
+        4,
+        13,
+        22,
+        31,
+        36,
+        37,
+        38,
+        39,
+        41,
+        42,
+        43,
+        44,
+        49,
+        58,
+        67,
+        76,
+        85
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "cannon_empty_40",
+      "pt": 3,
+      "sq": 40,
+      "occ": [],
+      "attacks": [],
+      "tracks": "both"
+    },
+    {
+      "label": "knight_empty_40",
+      "pt": 5,
+      "sq": 40,
+      "occ": [],
+      "attacks": [
+        21,
+        23,
+        29,
+        33,
+        47,
+        51,
+        57,
+        59
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "bishop_empty_40",
+      "pt": 6,
+      "sq": 40,
+      "occ": [],
+      "attacks": [
+        20,
+        24
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "rook_empty_44",
+      "pt": 1,
+      "sq": 44,
+      "occ": [],
+      "attacks": [
+        8,
+        17,
+        26,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        53,
+        62,
+        71,
+        80,
+        89
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "cannon_empty_44",
+      "pt": 3,
+      "sq": 44,
+      "occ": [],
+      "attacks": [],
+      "tracks": "both"
+    },
+    {
+      "label": "knight_empty_44",
+      "pt": 5,
+      "sq": 44,
+      "occ": [],
+      "attacks": [
+        25,
+        33,
+        51,
+        61
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "bishop_empty_44",
+      "pt": 6,
+      "sq": 44,
+      "occ": [],
+      "attacks": [
+        24
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "rook_empty_63",
+      "pt": 1,
+      "sq": 63,
+      "occ": [],
+      "attacks": [
+        0,
+        9,
+        18,
+        27,
+        36,
+        45,
+        54,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        81
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "cannon_empty_63",
+      "pt": 3,
+      "sq": 63,
+      "occ": [],
+      "attacks": [],
+      "tracks": "both"
+    },
+    {
+      "label": "knight_empty_63",
+      "pt": 5,
+      "sq": 63,
+      "occ": [],
+      "attacks": [
+        46,
+        56,
+        74,
+        82
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "bishop_empty_63",
+      "pt": 6,
+      "sq": 63,
+      "occ": [],
+      "attacks": [
+        47,
+        83
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "rook_empty_64",
+      "pt": 1,
+      "sq": 64,
+      "occ": [],
+      "attacks": [
+        1,
+        10,
+        19,
+        28,
+        37,
+        46,
+        55,
+        63,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        73,
+        82
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "cannon_empty_64",
+      "pt": 3,
+      "sq": 64,
+      "occ": [],
+      "attacks": [],
+      "tracks": "both"
+    },
+    {
+      "label": "knight_empty_64",
+      "pt": 5,
+      "sq": 64,
+      "occ": [],
+      "attacks": [
+        45,
+        47,
+        57,
+        75,
+        81,
+        83
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "bishop_empty_64",
+      "pt": 6,
+      "sq": 64,
+      "occ": [],
+      "attacks": [
+        48,
+        84
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "rook_empty_85",
+      "pt": 1,
+      "sq": 85,
+      "occ": [],
+      "attacks": [
+        4,
+        13,
+        22,
+        31,
+        40,
+        49,
+        58,
+        67,
+        76,
+        81,
+        82,
+        83,
+        84,
+        86,
+        87,
+        88,
+        89
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "cannon_empty_85",
+      "pt": 3,
+      "sq": 85,
+      "occ": [],
+      "attacks": [],
+      "tracks": "both"
+    },
+    {
+      "label": "knight_empty_85",
+      "pt": 5,
+      "sq": 85,
+      "occ": [],
+      "attacks": [
+        66,
+        68,
+        74,
+        78
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "bishop_empty_85",
+      "pt": 6,
+      "sq": 85,
+      "occ": [],
+      "attacks": [
+        65,
+        69
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "rook_empty_89",
+      "pt": 1,
+      "sq": 89,
+      "occ": [],
+      "attacks": [
+        8,
+        17,
+        26,
+        35,
+        44,
+        53,
+        62,
+        71,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "cannon_empty_89",
+      "pt": 3,
+      "sq": 89,
+      "occ": [],
+      "attacks": [],
+      "tracks": "both"
+    },
+    {
+      "label": "knight_empty_89",
+      "pt": 5,
+      "sq": 89,
+      "occ": [],
+      "attacks": [
+        70,
+        78
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "bishop_empty_89",
+      "pt": 6,
+      "sq": 89,
+      "occ": [],
+      "attacks": [
+        69
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "rook_e4_blk_0",
+      "pt": 1,
+      "sq": 40,
+      "occ": [
+        49
+      ],
+      "attacks": [
+        4,
+        13,
+        22,
+        31,
+        36,
+        37,
+        38,
+        39,
+        41,
+        42,
+        43,
+        44,
+        49
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "cannon_e4_blk_0",
+      "pt": 3,
+      "sq": 40,
+      "occ": [
+        49
+      ],
+      "attacks": [
+        58,
+        67,
+        76,
+        85
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "knight_e4_blk_0",
+      "pt": 5,
+      "sq": 40,
+      "occ": [
+        49
+      ],
+      "attacks": [
+        21,
+        23,
+        29,
+        33,
+        47,
+        51
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "bishop_e4_blk_0",
+      "pt": 6,
+      "sq": 40,
+      "occ": [
+        49
+      ],
+      "attacks": [
+        20,
+        24
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "rook_e4_blk_1",
+      "pt": 1,
+      "sq": 40,
+      "occ": [
+        31
+      ],
+      "attacks": [
+        31,
+        36,
+        37,
+        38,
+        39,
+        41,
+        42,
+        43,
+        44,
+        49,
+        58,
+        67,
+        76,
+        85
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "cannon_e4_blk_1",
+      "pt": 3,
+      "sq": 40,
+      "occ": [
+        31
+      ],
+      "attacks": [
+        4,
+        13,
+        22
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "knight_e4_blk_1",
+      "pt": 5,
+      "sq": 40,
+      "occ": [
+        31
+      ],
+      "attacks": [
+        29,
+        33,
+        47,
+        51,
+        57,
+        59
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "bishop_e4_blk_1",
+      "pt": 6,
+      "sq": 40,
+      "occ": [
+        31
+      ],
+      "attacks": [
+        20,
+        24
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "rook_e4_blk_2",
+      "pt": 1,
+      "sq": 40,
+      "occ": [
+        41
+      ],
+      "attacks": [
+        4,
+        13,
+        22,
+        31,
+        36,
+        37,
+        38,
+        39,
+        41,
+        49,
+        58,
+        67,
+        76,
+        85
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "cannon_e4_blk_2",
+      "pt": 3,
+      "sq": 40,
+      "occ": [
+        41
+      ],
+      "attacks": [
+        42,
+        43,
+        44
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "knight_e4_blk_2",
+      "pt": 5,
+      "sq": 40,
+      "occ": [
+        41
+      ],
+      "attacks": [
+        21,
+        23,
+        29,
+        47,
+        57,
+        59
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "bishop_e4_blk_2",
+      "pt": 6,
+      "sq": 40,
+      "occ": [
+        41
+      ],
+      "attacks": [
+        20,
+        24
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "rook_e4_blk_3",
+      "pt": 1,
+      "sq": 40,
+      "occ": [
+        39
+      ],
+      "attacks": [
+        4,
+        13,
+        22,
+        31,
+        39,
+        41,
+        42,
+        43,
+        44,
+        49,
+        58,
+        67,
+        76,
+        85
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "cannon_e4_blk_3",
+      "pt": 3,
+      "sq": 40,
+      "occ": [
+        39
+      ],
+      "attacks": [
+        36,
+        37,
+        38
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "knight_e4_blk_3",
+      "pt": 5,
+      "sq": 40,
+      "occ": [
+        39
+      ],
+      "attacks": [
+        21,
+        23,
+        33,
+        51,
+        57,
+        59
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "bishop_e4_blk_3",
+      "pt": 6,
+      "sq": 40,
+      "occ": [
+        39
+      ],
+      "attacks": [
+        20,
+        24
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "rook_e4_blk_4",
+      "pt": 1,
+      "sq": 40,
+      "occ": [
+        49,
+        58
+      ],
+      "attacks": [
+        4,
+        13,
+        22,
+        31,
+        36,
+        37,
+        38,
+        39,
+        41,
+        42,
+        43,
+        44,
+        49
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "cannon_e4_blk_4",
+      "pt": 3,
+      "sq": 40,
+      "occ": [
+        49,
+        58
+      ],
+      "attacks": [
+        58
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "knight_e4_blk_4",
+      "pt": 5,
+      "sq": 40,
+      "occ": [
+        49,
+        58
+      ],
+      "attacks": [
+        21,
+        23,
+        29,
+        33,
+        47,
+        51
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "bishop_e4_blk_4",
+      "pt": 6,
+      "sq": 40,
+      "occ": [
+        49,
+        58
+      ],
+      "attacks": [
+        20,
+        24
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "rook_e4_blk_5",
+      "pt": 1,
+      "sq": 40,
+      "occ": [
+        49,
+        31,
+        41,
+        39
+      ],
+      "attacks": [
+        31,
+        39,
+        41,
+        49
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "cannon_e4_blk_5",
+      "pt": 3,
+      "sq": 40,
+      "occ": [
+        49,
+        31,
+        41,
+        39
+      ],
+      "attacks": [
+        4,
+        13,
+        22,
+        36,
+        37,
+        38,
+        42,
+        43,
+        44,
+        58,
+        67,
+        76,
+        85
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "knight_e4_blk_5",
+      "pt": 5,
+      "sq": 40,
+      "occ": [
+        49,
+        31,
+        41,
+        39
+      ],
+      "attacks": [],
+      "tracks": "both"
+    },
+    {
+      "label": "bishop_e4_blk_5",
+      "pt": 6,
+      "sq": 40,
+      "occ": [
+        49,
+        31,
+        41,
+        39
+      ],
+      "attacks": [
+        20,
+        24
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "rook_e4_blk_6",
+      "pt": 1,
+      "sq": 40,
+      "occ": [
+        63
+      ],
+      "attacks": [
+        4,
+        13,
+        22,
+        31,
+        36,
+        37,
+        38,
+        39,
+        41,
+        42,
+        43,
+        44,
+        49,
+        58,
+        67,
+        76,
+        85
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "cannon_e4_blk_6",
+      "pt": 3,
+      "sq": 40,
+      "occ": [
+        63
+      ],
+      "attacks": [],
+      "tracks": "both"
+    },
+    {
+      "label": "knight_e4_blk_6",
+      "pt": 5,
+      "sq": 40,
+      "occ": [
+        63
+      ],
+      "attacks": [
+        21,
+        23,
+        29,
+        33,
+        47,
+        51,
+        57,
+        59
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "bishop_e4_blk_6",
+      "pt": 6,
+      "sq": 40,
+      "occ": [
+        63
+      ],
+      "attacks": [
+        20,
+        24
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "rook_e4_blk_7",
+      "pt": 1,
+      "sq": 40,
+      "occ": [
+        64
+      ],
+      "attacks": [
+        4,
+        13,
+        22,
+        31,
+        36,
+        37,
+        38,
+        39,
+        41,
+        42,
+        43,
+        44,
+        49,
+        58,
+        67,
+        76,
+        85
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "cannon_e4_blk_7",
+      "pt": 3,
+      "sq": 40,
+      "occ": [
+        64
+      ],
+      "attacks": [],
+      "tracks": "both"
+    },
+    {
+      "label": "knight_e4_blk_7",
+      "pt": 5,
+      "sq": 40,
+      "occ": [
+        64
+      ],
+      "attacks": [
+        21,
+        23,
+        29,
+        33,
+        47,
+        51,
+        57,
+        59
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "bishop_e4_blk_7",
+      "pt": 6,
+      "sq": 40,
+      "occ": [
+        64
+      ],
+      "attacks": [
+        20,
+        24
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "rook_e4_blk_8",
+      "pt": 1,
+      "sq": 40,
+      "occ": [
+        63,
+        64
+      ],
+      "attacks": [
+        4,
+        13,
+        22,
+        31,
+        36,
+        37,
+        38,
+        39,
+        41,
+        42,
+        43,
+        44,
+        49,
+        58,
+        67,
+        76,
+        85
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "cannon_e4_blk_8",
+      "pt": 3,
+      "sq": 40,
+      "occ": [
+        63,
+        64
+      ],
+      "attacks": [],
+      "tracks": "both"
+    },
+    {
+      "label": "knight_e4_blk_8",
+      "pt": 5,
+      "sq": 40,
+      "occ": [
+        63,
+        64
+      ],
+      "attacks": [
+        21,
+        23,
+        29,
+        33,
+        47,
+        51,
+        57,
+        59
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "bishop_e4_blk_8",
+      "pt": 6,
+      "sq": 40,
+      "occ": [
+        63,
+        64
+      ],
+      "attacks": [
+        20,
+        24
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "rook_e4_blk_9",
+      "pt": 1,
+      "sq": 40,
+      "occ": [
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ],
+      "attacks": [
+        13,
+        22,
+        31,
+        36,
+        37,
+        38,
+        39,
+        41,
+        42,
+        43,
+        44,
+        49,
+        58,
+        67,
+        76,
+        85
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "cannon_e4_blk_9",
+      "pt": 3,
+      "sq": 40,
+      "occ": [
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ],
+      "attacks": [
+        4
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "knight_e4_blk_9",
+      "pt": 5,
+      "sq": 40,
+      "occ": [
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ],
+      "attacks": [
+        21,
+        23,
+        29,
+        33,
+        47,
+        51,
+        57,
+        59
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "bishop_e4_blk_9",
+      "pt": 6,
+      "sq": 40,
+      "occ": [
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ],
+      "attacks": [
+        20,
+        24
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "cannon_screen_a0_a2_a4",
+      "pt": 3,
+      "sq": 0,
+      "occ": [
+        18,
+        36
+      ],
+      "attacks": [
+        27,
+        36
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "cannon_double_hurdle_a0",
+      "pt": 3,
+      "sq": 0,
+      "occ": [
+        9,
+        18,
+        36
+      ],
+      "attacks": [
+        18
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "cannon_edge_file_a_rank",
+      "pt": 3,
+      "sq": 0,
+      "occ": [
+        81
+      ],
+      "attacks": [],
+      "tracks": "both"
+    },
+    {
+      "label": "rook_edge_stop_a3",
+      "pt": 1,
+      "sq": 0,
+      "occ": [
+        27
+      ],
+      "attacks": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        18,
+        27
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "rook_edge_63_64",
+      "pt": 1,
+      "sq": 63,
+      "occ": [
+        64
+      ],
+      "attacks": [
+        0,
+        9,
+        18,
+        27,
+        36,
+        45,
+        54,
+        64,
+        72,
+        81
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "knight_leg_e4_north",
+      "pt": 5,
+      "sq": 40,
+      "occ": [
+        49
+      ],
+      "attacks": [
+        21,
+        23,
+        29,
+        33,
+        47,
+        51
+      ],
+      "tracks": "both"
+    },
+    {
+      "label": "knight_to_e6_from_e4",
+      "pt": 8,
+      "sq": 58,
+      "occ": [
+        49
+      ],
+      "attacks": [
+        39,
+        41,
+        47,
+        51,
+        65,
+        69,
+        75,
+        77
+      ],
+      "tracks": "core"
+    },
+    {
+      "label": "bishop_eye_c2_ne",
+      "pt": 6,
+      "sq": 20,
+      "occ": [
+        30
+      ],
+      "attacks": [
+        0,
+        4,
+        36
+      ],
+      "tracks": "both"
+    }
+  ],
+  "leaper_cases": [
+    {
+      "label": "king_palace_3",
+      "kind": "king",
+      "sq": 3,
+      "core": [
+        4,
+        12
+      ],
+      "nnue": [
+        4,
+        12
+      ],
+      "upstream": [
+        4,
+        12
+      ]
+    },
+    {
+      "label": "advisor_palace_3",
+      "kind": "advisor",
+      "sq": 3,
+      "core": [
+        13
+      ],
+      "nnue": [
+        13
+      ],
+      "upstream": [
+        13
+      ]
+    },
+    {
+      "label": "king_palace_4",
+      "kind": "king",
+      "sq": 4,
+      "core": [
+        3,
+        5,
+        13
+      ],
+      "nnue": [
+        3,
+        5,
+        13
+      ],
+      "upstream": [
+        3,
+        5,
+        13
+      ]
+    },
+    {
+      "label": "advisor_palace_4",
+      "kind": "advisor",
+      "sq": 4,
+      "core": [
+        12,
+        14
+      ],
+      "nnue": [
+        12,
+        14
+      ],
+      "upstream": [
+        12,
+        14
+      ]
+    },
+    {
+      "label": "king_palace_5",
+      "kind": "king",
+      "sq": 5,
+      "core": [
+        4,
+        14
+      ],
+      "nnue": [
+        4,
+        14
+      ],
+      "upstream": [
+        4,
+        14
+      ]
+    },
+    {
+      "label": "advisor_palace_5",
+      "kind": "advisor",
+      "sq": 5,
+      "core": [
+        13
+      ],
+      "nnue": [
+        13
+      ],
+      "upstream": [
+        13
+      ]
+    },
+    {
+      "label": "king_palace_12",
+      "kind": "king",
+      "sq": 12,
+      "core": [
+        3,
+        13,
+        21
+      ],
+      "nnue": [
+        3,
+        13,
+        21
+      ],
+      "upstream": [
+        3,
+        13,
+        21
+      ]
+    },
+    {
+      "label": "advisor_palace_12",
+      "kind": "advisor",
+      "sq": 12,
+      "core": [
+        4,
+        22
+      ],
+      "nnue": [
+        4,
+        22
+      ],
+      "upstream": [
+        4,
+        22
+      ]
+    },
+    {
+      "label": "king_palace_13",
+      "kind": "king",
+      "sq": 13,
+      "core": [
+        4,
+        12,
+        14,
+        22
+      ],
+      "nnue": [
+        4,
+        12,
+        14,
+        22
+      ],
+      "upstream": [
+        4,
+        12,
+        14,
+        22
+      ]
+    },
+    {
+      "label": "advisor_palace_13",
+      "kind": "advisor",
+      "sq": 13,
+      "core": [
+        3,
+        5,
+        21,
+        23
+      ],
+      "nnue": [
+        3,
+        5,
+        21,
+        23
+      ],
+      "upstream": [
+        3,
+        5,
+        21,
+        23
+      ]
+    },
+    {
+      "label": "king_palace_14",
+      "kind": "king",
+      "sq": 14,
+      "core": [
+        5,
+        13,
+        23
+      ],
+      "nnue": [
+        5,
+        13,
+        23
+      ],
+      "upstream": [
+        5,
+        13,
+        23
+      ]
+    },
+    {
+      "label": "advisor_palace_14",
+      "kind": "advisor",
+      "sq": 14,
+      "core": [
+        4,
+        22
+      ],
+      "nnue": [
+        4,
+        22
+      ],
+      "upstream": [
+        4,
+        22
+      ]
+    },
+    {
+      "label": "king_palace_21",
+      "kind": "king",
+      "sq": 21,
+      "core": [
+        12,
+        22
+      ],
+      "nnue": [
+        12,
+        22
+      ],
+      "upstream": [
+        12,
+        22
+      ]
+    },
+    {
+      "label": "advisor_palace_21",
+      "kind": "advisor",
+      "sq": 21,
+      "core": [
+        13
+      ],
+      "nnue": [
+        13
+      ],
+      "upstream": [
+        13
+      ]
+    },
+    {
+      "label": "king_palace_22",
+      "kind": "king",
+      "sq": 22,
+      "core": [
+        13,
+        21,
+        23
+      ],
+      "nnue": [
+        13,
+        21,
+        23
+      ],
+      "upstream": [
+        13,
+        21,
+        23
+      ]
+    },
+    {
+      "label": "advisor_palace_22",
+      "kind": "advisor",
+      "sq": 22,
+      "core": [
+        12,
+        14
+      ],
+      "nnue": [
+        12,
+        14
+      ],
+      "upstream": [
+        12,
+        14
+      ]
+    },
+    {
+      "label": "king_palace_23",
+      "kind": "king",
+      "sq": 23,
+      "core": [
+        14,
+        22
+      ],
+      "nnue": [
+        14,
+        22
+      ],
+      "upstream": [
+        14,
+        22
+      ]
+    },
+    {
+      "label": "advisor_palace_23",
+      "kind": "advisor",
+      "sq": 23,
+      "core": [
+        13
+      ],
+      "nnue": [
+        13
+      ],
+      "upstream": [
+        13
+      ]
+    },
+    {
+      "label": "king_palace_66",
+      "kind": "king",
+      "sq": 66,
+      "core": [
+        67,
+        75
+      ],
+      "nnue": [
+        67,
+        75
+      ],
+      "upstream": [
+        67,
+        75
+      ]
+    },
+    {
+      "label": "advisor_palace_66",
+      "kind": "advisor",
+      "sq": 66,
+      "core": [
+        76
+      ],
+      "nnue": [
+        76
+      ],
+      "upstream": [
+        76
+      ]
+    },
+    {
+      "label": "king_palace_67",
+      "kind": "king",
+      "sq": 67,
+      "core": [
+        66,
+        68,
+        76
+      ],
+      "nnue": [
+        66,
+        68,
+        76
+      ],
+      "upstream": [
+        66,
+        68,
+        76
+      ]
+    },
+    {
+      "label": "advisor_palace_67",
+      "kind": "advisor",
+      "sq": 67,
+      "core": [
+        75,
+        77
+      ],
+      "nnue": [
+        75,
+        77
+      ],
+      "upstream": [
+        75,
+        77
+      ]
+    },
+    {
+      "label": "king_palace_68",
+      "kind": "king",
+      "sq": 68,
+      "core": [
+        67,
+        77
+      ],
+      "nnue": [
+        67,
+        77
+      ],
+      "upstream": [
+        67,
+        77
+      ]
+    },
+    {
+      "label": "advisor_palace_68",
+      "kind": "advisor",
+      "sq": 68,
+      "core": [
+        76
+      ],
+      "nnue": [
+        76
+      ],
+      "upstream": [
+        76
+      ]
+    },
+    {
+      "label": "king_palace_75",
+      "kind": "king",
+      "sq": 75,
+      "core": [
+        66,
+        76,
+        84
+      ],
+      "nnue": [
+        66,
+        76,
+        84
+      ],
+      "upstream": [
+        66,
+        76,
+        84
+      ]
+    },
+    {
+      "label": "advisor_palace_75",
+      "kind": "advisor",
+      "sq": 75,
+      "core": [
+        67,
+        85
+      ],
+      "nnue": [
+        67,
+        85
+      ],
+      "upstream": [
+        67,
+        85
+      ]
+    },
+    {
+      "label": "king_palace_76",
+      "kind": "king",
+      "sq": 76,
+      "core": [
+        67,
+        75,
+        77,
+        85
+      ],
+      "nnue": [
+        67,
+        75,
+        77,
+        85
+      ],
+      "upstream": [
+        67,
+        75,
+        77,
+        85
+      ]
+    },
+    {
+      "label": "advisor_palace_76",
+      "kind": "advisor",
+      "sq": 76,
+      "core": [
+        66,
+        68,
+        84,
+        86
+      ],
+      "nnue": [
+        66,
+        68,
+        84,
+        86
+      ],
+      "upstream": [
+        66,
+        68,
+        84,
+        86
+      ]
+    },
+    {
+      "label": "king_palace_77",
+      "kind": "king",
+      "sq": 77,
+      "core": [
+        68,
+        76,
+        86
+      ],
+      "nnue": [
+        68,
+        76,
+        86
+      ],
+      "upstream": [
+        68,
+        76,
+        86
+      ]
+    },
+    {
+      "label": "advisor_palace_77",
+      "kind": "advisor",
+      "sq": 77,
+      "core": [
+        67,
+        85
+      ],
+      "nnue": [
+        67,
+        85
+      ],
+      "upstream": [
+        67,
+        85
+      ]
+    },
+    {
+      "label": "king_palace_84",
+      "kind": "king",
+      "sq": 84,
+      "core": [
+        75,
+        85
+      ],
+      "nnue": [
+        75,
+        85
+      ],
+      "upstream": [
+        75,
+        85
+      ]
+    },
+    {
+      "label": "advisor_palace_84",
+      "kind": "advisor",
+      "sq": 84,
+      "core": [
+        76
+      ],
+      "nnue": [
+        76
+      ],
+      "upstream": [
+        76
+      ]
+    },
+    {
+      "label": "king_palace_85",
+      "kind": "king",
+      "sq": 85,
+      "core": [
+        76,
+        84,
+        86
+      ],
+      "nnue": [
+        76,
+        84,
+        86
+      ],
+      "upstream": [
+        76,
+        84,
+        86
+      ]
+    },
+    {
+      "label": "advisor_palace_85",
+      "kind": "advisor",
+      "sq": 85,
+      "core": [
+        75,
+        77
+      ],
+      "nnue": [
+        75,
+        77
+      ],
+      "upstream": [
+        75,
+        77
+      ]
+    },
+    {
+      "label": "king_palace_86",
+      "kind": "king",
+      "sq": 86,
+      "core": [
+        77,
+        85
+      ],
+      "nnue": [
+        77,
+        85
+      ],
+      "upstream": [
+        77,
+        85
+      ]
+    },
+    {
+      "label": "advisor_palace_86",
+      "kind": "advisor",
+      "sq": 86,
+      "core": [
+        76
+      ],
+      "nnue": [
+        76
+      ],
+      "upstream": [
+        76
+      ]
+    },
+    {
+      "label": "pawn_w_a3",
+      "kind": "pawn",
+      "color": 0,
+      "sq": 27,
+      "core": [
+        36
+      ],
+      "nnue": [
+        36
+      ],
+      "upstream": [
+        36
+      ]
+    },
+    {
+      "label": "pawn_w_e5",
+      "kind": "pawn",
+      "color": 0,
+      "sq": 49,
+      "core": [
+        48,
+        50,
+        58
+      ],
+      "nnue": [
+        48,
+        50,
+        58
+      ],
+      "upstream": [
+        48,
+        50,
+        58
+      ]
+    },
+    {
+      "label": "pawn_b_e4",
+      "kind": "pawn",
+      "color": 1,
+      "sq": 40,
+      "core": [
+        31,
+        39,
+        41
+      ],
+      "nnue": [
+        31,
+        39,
+        41
+      ],
+      "upstream": [
+        31,
+        39,
+        41
+      ]
+    },
+    {
+      "label": "pawn_b_e6",
+      "kind": "pawn",
+      "color": 1,
+      "sq": 58,
+      "core": [
+        49
+      ],
+      "nnue": [
+        49
+      ],
+      "upstream": [
+        49
+      ]
+    }
+  ],
+  "queries": {
+    "pair_count": 146,
+    "pairs": [
+      {
+        "s1": 0,
+        "s2": 0,
+        "line": [],
+        "between": [
+          0
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 0,
+        "s2": 4,
+        "line": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "between": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "ray_pass": [
+          5,
+          6,
+          7,
+          8
+        ],
+        "leaper_pass": []
+      },
+      {
+        "s1": 0,
+        "s2": 40,
+        "line": [],
+        "between": [
+          40
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 0,
+        "s2": 44,
+        "line": [],
+        "between": [
+          44
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 0,
+        "s2": 45,
+        "line": [
+          0,
+          9,
+          18,
+          27,
+          36,
+          45,
+          54,
+          63,
+          72,
+          81
+        ],
+        "between": [
+          9,
+          18,
+          27,
+          36,
+          45
+        ],
+        "ray_pass": [
+          54,
+          63,
+          72,
+          81
+        ],
+        "leaper_pass": []
+      },
+      {
+        "s1": 0,
+        "s2": 63,
+        "line": [
+          0,
+          9,
+          18,
+          27,
+          36,
+          45,
+          54,
+          63,
+          72,
+          81
+        ],
+        "between": [
+          9,
+          18,
+          27,
+          36,
+          45,
+          54,
+          63
+        ],
+        "ray_pass": [
+          72,
+          81
+        ],
+        "leaper_pass": []
+      },
+      {
+        "s1": 0,
+        "s2": 64,
+        "line": [],
+        "between": [
+          64
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 0,
+        "s2": 76,
+        "line": [],
+        "between": [
+          76
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 0,
+        "s2": 85,
+        "line": [],
+        "between": [
+          85
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 0,
+        "s2": 89,
+        "line": [],
+        "between": [
+          89
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 1,
+        "s2": 4,
+        "line": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "between": [
+          2,
+          3,
+          4
+        ],
+        "ray_pass": [
+          5,
+          6,
+          7,
+          8
+        ],
+        "leaper_pass": []
+      },
+      {
+        "s1": 2,
+        "s2": 4,
+        "line": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "between": [
+          3,
+          4
+        ],
+        "ray_pass": [
+          5,
+          6,
+          7,
+          8
+        ],
+        "leaper_pass": []
+      },
+      {
+        "s1": 3,
+        "s2": 4,
+        "line": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "between": [
+          4
+        ],
+        "ray_pass": [
+          5,
+          6,
+          7,
+          8
+        ],
+        "leaper_pass": [
+          14
+        ]
+      },
+      {
+        "s1": 4,
+        "s2": 0,
+        "line": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "between": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 4,
+        "s2": 1,
+        "line": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "between": [
+          1,
+          2,
+          3
+        ],
+        "ray_pass": [
+          0
+        ],
+        "leaper_pass": []
+      },
+      {
+        "s1": 4,
+        "s2": 2,
+        "line": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "between": [
+          2,
+          3
+        ],
+        "ray_pass": [
+          0,
+          1
+        ],
+        "leaper_pass": []
+      },
+      {
+        "s1": 4,
+        "s2": 3,
+        "line": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "between": [
+          3
+        ],
+        "ray_pass": [
+          0,
+          1,
+          2
+        ],
+        "leaper_pass": [
+          11
+        ]
+      },
+      {
+        "s1": 4,
+        "s2": 4,
+        "line": [],
+        "between": [
+          4
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 4,
+        "s2": 5,
+        "line": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "between": [
+          5
+        ],
+        "ray_pass": [
+          6,
+          7,
+          8
+        ],
+        "leaper_pass": [
+          15
+        ]
+      },
+      {
+        "s1": 4,
+        "s2": 6,
+        "line": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "between": [
+          5,
+          6
+        ],
+        "ray_pass": [
+          7,
+          8
+        ],
+        "leaper_pass": []
+      },
+      {
+        "s1": 4,
+        "s2": 7,
+        "line": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "between": [
+          5,
+          6,
+          7
+        ],
+        "ray_pass": [
+          8
+        ],
+        "leaper_pass": []
+      },
+      {
+        "s1": 4,
+        "s2": 8,
+        "line": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "between": [
+          5,
+          6,
+          7,
+          8
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 4,
+        "s2": 12,
+        "line": [],
+        "between": [
+          12
+        ],
+        "ray_pass": [],
+        "leaper_pass": [
+          20
+        ]
+      },
+      {
+        "s1": 4,
+        "s2": 13,
+        "line": [
+          4,
+          13,
+          22,
+          31,
+          40,
+          49,
+          58,
+          67,
+          76,
+          85
+        ],
+        "between": [
+          13
+        ],
+        "ray_pass": [
+          22,
+          31,
+          40,
+          49,
+          58,
+          67,
+          76,
+          85
+        ],
+        "leaper_pass": [
+          21,
+          23
+        ]
+      },
+      {
+        "s1": 4,
+        "s2": 14,
+        "line": [],
+        "between": [
+          14
+        ],
+        "ray_pass": [],
+        "leaper_pass": [
+          24
+        ]
+      },
+      {
+        "s1": 4,
+        "s2": 22,
+        "line": [
+          4,
+          13,
+          22,
+          31,
+          40,
+          49,
+          58,
+          67,
+          76,
+          85
+        ],
+        "between": [
+          13,
+          22
+        ],
+        "ray_pass": [
+          31,
+          40,
+          49,
+          58,
+          67,
+          76,
+          85
+        ],
+        "leaper_pass": []
+      },
+      {
+        "s1": 4,
+        "s2": 31,
+        "line": [
+          4,
+          13,
+          22,
+          31,
+          40,
+          49,
+          58,
+          67,
+          76,
+          85
+        ],
+        "between": [
+          13,
+          22,
+          31
+        ],
+        "ray_pass": [
+          40,
+          49,
+          58,
+          67,
+          76,
+          85
+        ],
+        "leaper_pass": []
+      },
+      {
+        "s1": 4,
+        "s2": 40,
+        "line": [
+          4,
+          13,
+          22,
+          31,
+          40,
+          49,
+          58,
+          67,
+          76,
+          85
+        ],
+        "between": [
+          13,
+          22,
+          31,
+          40
+        ],
+        "ray_pass": [
+          49,
+          58,
+          67,
+          76,
+          85
+        ],
+        "leaper_pass": []
+      },
+      {
+        "s1": 4,
+        "s2": 44,
+        "line": [],
+        "between": [
+          44
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 4,
+        "s2": 45,
+        "line": [],
+        "between": [
+          45
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 4,
+        "s2": 49,
+        "line": [
+          4,
+          13,
+          22,
+          31,
+          40,
+          49,
+          58,
+          67,
+          76,
+          85
+        ],
+        "between": [
+          13,
+          22,
+          31,
+          40,
+          49
+        ],
+        "ray_pass": [
+          58,
+          67,
+          76,
+          85
+        ],
+        "leaper_pass": []
+      },
+      {
+        "s1": 4,
+        "s2": 58,
+        "line": [
+          4,
+          13,
+          22,
+          31,
+          40,
+          49,
+          58,
+          67,
+          76,
+          85
+        ],
+        "between": [
+          13,
+          22,
+          31,
+          40,
+          49,
+          58
+        ],
+        "ray_pass": [
+          67,
+          76,
+          85
+        ],
+        "leaper_pass": []
+      },
+      {
+        "s1": 4,
+        "s2": 63,
+        "line": [],
+        "between": [
+          63
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 4,
+        "s2": 64,
+        "line": [],
+        "between": [
+          64
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 4,
+        "s2": 67,
+        "line": [
+          4,
+          13,
+          22,
+          31,
+          40,
+          49,
+          58,
+          67,
+          76,
+          85
+        ],
+        "between": [
+          13,
+          22,
+          31,
+          40,
+          49,
+          58,
+          67
+        ],
+        "ray_pass": [
+          76,
+          85
+        ],
+        "leaper_pass": []
+      },
+      {
+        "s1": 4,
+        "s2": 76,
+        "line": [
+          4,
+          13,
+          22,
+          31,
+          40,
+          49,
+          58,
+          67,
+          76,
+          85
+        ],
+        "between": [
+          13,
+          22,
+          31,
+          40,
+          49,
+          58,
+          67,
+          76
+        ],
+        "ray_pass": [
+          85
+        ],
+        "leaper_pass": []
+      },
+      {
+        "s1": 4,
+        "s2": 85,
+        "line": [
+          4,
+          13,
+          22,
+          31,
+          40,
+          49,
+          58,
+          67,
+          76,
+          85
+        ],
+        "between": [
+          13,
+          22,
+          31,
+          40,
+          49,
+          58,
+          67,
+          76,
+          85
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 4,
+        "s2": 89,
+        "line": [],
+        "between": [
+          89
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 5,
+        "s2": 4,
+        "line": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "between": [
+          4
+        ],
+        "ray_pass": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "leaper_pass": [
+          12
+        ]
+      },
+      {
+        "s1": 6,
+        "s2": 4,
+        "line": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "between": [
+          4,
+          5
+        ],
+        "ray_pass": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "leaper_pass": []
+      },
+      {
+        "s1": 7,
+        "s2": 4,
+        "line": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "between": [
+          4,
+          5,
+          6
+        ],
+        "ray_pass": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "leaper_pass": []
+      },
+      {
+        "s1": 8,
+        "s2": 4,
+        "line": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "between": [
+          4,
+          5,
+          6,
+          7
+        ],
+        "ray_pass": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "leaper_pass": []
+      },
+      {
+        "s1": 12,
+        "s2": 4,
+        "line": [],
+        "between": [
+          4
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 13,
+        "s2": 4,
+        "line": [
+          4,
+          13,
+          22,
+          31,
+          40,
+          49,
+          58,
+          67,
+          76,
+          85
+        ],
+        "between": [
+          4
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 14,
+        "s2": 4,
+        "line": [],
+        "between": [
+          4
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 21,
+        "s2": 40,
+        "line": [],
+        "between": [
+          31,
+          40
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 22,
+        "s2": 4,
+        "line": [
+          4,
+          13,
+          22,
+          31,
+          40,
+          49,
+          58,
+          67,
+          76,
+          85
+        ],
+        "between": [
+          4,
+          13
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 23,
+        "s2": 40,
+        "line": [],
+        "between": [
+          31,
+          40
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 29,
+        "s2": 40,
+        "line": [],
+        "between": [
+          39,
+          40
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 31,
+        "s2": 4,
+        "line": [
+          4,
+          13,
+          22,
+          31,
+          40,
+          49,
+          58,
+          67,
+          76,
+          85
+        ],
+        "between": [
+          4,
+          13,
+          22
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 33,
+        "s2": 40,
+        "line": [],
+        "between": [
+          40,
+          41
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 40,
+        "s2": 0,
+        "line": [],
+        "between": [
+          0
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 40,
+        "s2": 4,
+        "line": [
+          4,
+          13,
+          22,
+          31,
+          40,
+          49,
+          58,
+          67,
+          76,
+          85
+        ],
+        "between": [
+          4,
+          13,
+          22,
+          31
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 40,
+        "s2": 21,
+        "line": [],
+        "between": [
+          21,
+          30
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 40,
+        "s2": 23,
+        "line": [],
+        "between": [
+          23,
+          32
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 40,
+        "s2": 29,
+        "line": [],
+        "between": [
+          29,
+          30
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 40,
+        "s2": 33,
+        "line": [],
+        "between": [
+          32,
+          33
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 40,
+        "s2": 40,
+        "line": [],
+        "between": [
+          40
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 40,
+        "s2": 44,
+        "line": [
+          36,
+          37,
+          38,
+          39,
+          40,
+          41,
+          42,
+          43,
+          44
+        ],
+        "between": [
+          41,
+          42,
+          43,
+          44
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 40,
+        "s2": 45,
+        "line": [],
+        "between": [
+          45
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 40,
+        "s2": 47,
+        "line": [],
+        "between": [
+          47,
+          48
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 40,
+        "s2": 51,
+        "line": [],
+        "between": [
+          50,
+          51
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 40,
+        "s2": 57,
+        "line": [],
+        "between": [
+          48,
+          57
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 40,
+        "s2": 59,
+        "line": [],
+        "between": [
+          50,
+          59
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 40,
+        "s2": 63,
+        "line": [],
+        "between": [
+          63
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 40,
+        "s2": 64,
+        "line": [],
+        "between": [
+          64
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 40,
+        "s2": 76,
+        "line": [
+          4,
+          13,
+          22,
+          31,
+          40,
+          49,
+          58,
+          67,
+          76,
+          85
+        ],
+        "between": [
+          49,
+          58,
+          67,
+          76
+        ],
+        "ray_pass": [
+          85
+        ],
+        "leaper_pass": []
+      },
+      {
+        "s1": 40,
+        "s2": 85,
+        "line": [
+          4,
+          13,
+          22,
+          31,
+          40,
+          49,
+          58,
+          67,
+          76,
+          85
+        ],
+        "between": [
+          49,
+          58,
+          67,
+          76,
+          85
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 40,
+        "s2": 89,
+        "line": [],
+        "between": [
+          89
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 44,
+        "s2": 0,
+        "line": [],
+        "between": [
+          0
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 44,
+        "s2": 4,
+        "line": [],
+        "between": [
+          4
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 44,
+        "s2": 40,
+        "line": [
+          36,
+          37,
+          38,
+          39,
+          40,
+          41,
+          42,
+          43,
+          44
+        ],
+        "between": [
+          40,
+          41,
+          42,
+          43
+        ],
+        "ray_pass": [
+          36,
+          37,
+          38,
+          39
+        ],
+        "leaper_pass": []
+      },
+      {
+        "s1": 44,
+        "s2": 44,
+        "line": [],
+        "between": [
+          44
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 44,
+        "s2": 45,
+        "line": [],
+        "between": [
+          45
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 44,
+        "s2": 63,
+        "line": [],
+        "between": [
+          63
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 44,
+        "s2": 64,
+        "line": [],
+        "between": [
+          64
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 44,
+        "s2": 76,
+        "line": [],
+        "between": [
+          76
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 44,
+        "s2": 85,
+        "line": [],
+        "between": [
+          85
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 44,
+        "s2": 89,
+        "line": [
+          8,
+          17,
+          26,
+          35,
+          44,
+          53,
+          62,
+          71,
+          80,
+          89
+        ],
+        "between": [
+          53,
+          62,
+          71,
+          80,
+          89
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 45,
+        "s2": 0,
+        "line": [
+          0,
+          9,
+          18,
+          27,
+          36,
+          45,
+          54,
+          63,
+          72,
+          81
+        ],
+        "between": [
+          0,
+          9,
+          18,
+          27,
+          36
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 45,
+        "s2": 4,
+        "line": [],
+        "between": [
+          4
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 45,
+        "s2": 40,
+        "line": [],
+        "between": [
+          40
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 45,
+        "s2": 44,
+        "line": [],
+        "between": [
+          44
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 45,
+        "s2": 45,
+        "line": [],
+        "between": [
+          45
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 45,
+        "s2": 63,
+        "line": [
+          0,
+          9,
+          18,
+          27,
+          36,
+          45,
+          54,
+          63,
+          72,
+          81
+        ],
+        "between": [
+          54,
+          63
+        ],
+        "ray_pass": [
+          72,
+          81
+        ],
+        "leaper_pass": []
+      },
+      {
+        "s1": 45,
+        "s2": 64,
+        "line": [],
+        "between": [
+          55,
+          64
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 45,
+        "s2": 76,
+        "line": [],
+        "between": [
+          76
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 45,
+        "s2": 85,
+        "line": [],
+        "between": [
+          85
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 45,
+        "s2": 89,
+        "line": [],
+        "between": [
+          89
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 47,
+        "s2": 40,
+        "line": [],
+        "between": [
+          39,
+          40
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 49,
+        "s2": 4,
+        "line": [
+          4,
+          13,
+          22,
+          31,
+          40,
+          49,
+          58,
+          67,
+          76,
+          85
+        ],
+        "between": [
+          4,
+          13,
+          22,
+          31,
+          40
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 51,
+        "s2": 40,
+        "line": [],
+        "between": [
+          40,
+          41
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 57,
+        "s2": 40,
+        "line": [],
+        "between": [
+          40,
+          49
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 58,
+        "s2": 4,
+        "line": [
+          4,
+          13,
+          22,
+          31,
+          40,
+          49,
+          58,
+          67,
+          76,
+          85
+        ],
+        "between": [
+          4,
+          13,
+          22,
+          31,
+          40,
+          49
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 59,
+        "s2": 40,
+        "line": [],
+        "between": [
+          40,
+          49
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 63,
+        "s2": 0,
+        "line": [
+          0,
+          9,
+          18,
+          27,
+          36,
+          45,
+          54,
+          63,
+          72,
+          81
+        ],
+        "between": [
+          0,
+          9,
+          18,
+          27,
+          36,
+          45,
+          54
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 63,
+        "s2": 4,
+        "line": [],
+        "between": [
+          4
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 63,
+        "s2": 40,
+        "line": [],
+        "between": [
+          40
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 63,
+        "s2": 44,
+        "line": [],
+        "between": [
+          44
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 63,
+        "s2": 45,
+        "line": [
+          0,
+          9,
+          18,
+          27,
+          36,
+          45,
+          54,
+          63,
+          72,
+          81
+        ],
+        "between": [
+          45,
+          54
+        ],
+        "ray_pass": [
+          0,
+          9,
+          18,
+          27,
+          36
+        ],
+        "leaper_pass": []
+      },
+      {
+        "s1": 63,
+        "s2": 63,
+        "line": [],
+        "between": [
+          63
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 63,
+        "s2": 64,
+        "line": [
+          63,
+          64,
+          65,
+          66,
+          67,
+          68,
+          69,
+          70,
+          71
+        ],
+        "between": [
+          64
+        ],
+        "ray_pass": [
+          65,
+          66,
+          67,
+          68,
+          69,
+          70,
+          71
+        ],
+        "leaper_pass": [
+          56,
+          74
+        ]
+      },
+      {
+        "s1": 63,
+        "s2": 76,
+        "line": [],
+        "between": [
+          76
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 63,
+        "s2": 85,
+        "line": [],
+        "between": [
+          85
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 63,
+        "s2": 89,
+        "line": [],
+        "between": [
+          89
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 64,
+        "s2": 0,
+        "line": [],
+        "between": [
+          0
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 64,
+        "s2": 4,
+        "line": [],
+        "between": [
+          4
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 64,
+        "s2": 40,
+        "line": [],
+        "between": [
+          40
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 64,
+        "s2": 44,
+        "line": [],
+        "between": [
+          44
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 64,
+        "s2": 45,
+        "line": [],
+        "between": [
+          45,
+          54
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 64,
+        "s2": 63,
+        "line": [
+          63,
+          64,
+          65,
+          66,
+          67,
+          68,
+          69,
+          70,
+          71
+        ],
+        "between": [
+          63
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 64,
+        "s2": 64,
+        "line": [],
+        "between": [
+          64
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 64,
+        "s2": 76,
+        "line": [],
+        "between": [
+          76
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 64,
+        "s2": 85,
+        "line": [],
+        "between": [
+          85
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 64,
+        "s2": 89,
+        "line": [],
+        "between": [
+          89
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 67,
+        "s2": 4,
+        "line": [
+          4,
+          13,
+          22,
+          31,
+          40,
+          49,
+          58,
+          67,
+          76,
+          85
+        ],
+        "between": [
+          4,
+          13,
+          22,
+          31,
+          40,
+          49,
+          58
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 76,
+        "s2": 0,
+        "line": [],
+        "between": [
+          0
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 76,
+        "s2": 4,
+        "line": [
+          4,
+          13,
+          22,
+          31,
+          40,
+          49,
+          58,
+          67,
+          76,
+          85
+        ],
+        "between": [
+          4,
+          13,
+          22,
+          31,
+          40,
+          49,
+          58,
+          67
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 76,
+        "s2": 40,
+        "line": [
+          4,
+          13,
+          22,
+          31,
+          40,
+          49,
+          58,
+          67,
+          76,
+          85
+        ],
+        "between": [
+          40,
+          49,
+          58,
+          67
+        ],
+        "ray_pass": [
+          4,
+          13,
+          22,
+          31
+        ],
+        "leaper_pass": []
+      },
+      {
+        "s1": 76,
+        "s2": 44,
+        "line": [],
+        "between": [
+          44
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 76,
+        "s2": 45,
+        "line": [],
+        "between": [
+          45
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 76,
+        "s2": 63,
+        "line": [],
+        "between": [
+          63
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 76,
+        "s2": 64,
+        "line": [],
+        "between": [
+          64
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 76,
+        "s2": 76,
+        "line": [],
+        "between": [
+          76
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 76,
+        "s2": 85,
+        "line": [
+          4,
+          13,
+          22,
+          31,
+          40,
+          49,
+          58,
+          67,
+          76,
+          85
+        ],
+        "between": [
+          85
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 76,
+        "s2": 89,
+        "line": [],
+        "between": [
+          89
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 85,
+        "s2": 0,
+        "line": [],
+        "between": [
+          0
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 85,
+        "s2": 4,
+        "line": [
+          4,
+          13,
+          22,
+          31,
+          40,
+          49,
+          58,
+          67,
+          76,
+          85
+        ],
+        "between": [
+          4,
+          13,
+          22,
+          31,
+          40,
+          49,
+          58,
+          67,
+          76
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 85,
+        "s2": 40,
+        "line": [
+          4,
+          13,
+          22,
+          31,
+          40,
+          49,
+          58,
+          67,
+          76,
+          85
+        ],
+        "between": [
+          40,
+          49,
+          58,
+          67,
+          76
+        ],
+        "ray_pass": [
+          4,
+          13,
+          22,
+          31
+        ],
+        "leaper_pass": []
+      },
+      {
+        "s1": 85,
+        "s2": 44,
+        "line": [],
+        "between": [
+          44
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 85,
+        "s2": 45,
+        "line": [],
+        "between": [
+          45
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 85,
+        "s2": 63,
+        "line": [],
+        "between": [
+          63
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 85,
+        "s2": 64,
+        "line": [],
+        "between": [
+          64
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 85,
+        "s2": 76,
+        "line": [
+          4,
+          13,
+          22,
+          31,
+          40,
+          49,
+          58,
+          67,
+          76,
+          85
+        ],
+        "between": [
+          76
+        ],
+        "ray_pass": [
+          4,
+          13,
+          22,
+          31,
+          40,
+          49,
+          58,
+          67
+        ],
+        "leaper_pass": [
+          66,
+          68
+        ]
+      },
+      {
+        "s1": 85,
+        "s2": 85,
+        "line": [],
+        "between": [
+          85
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 85,
+        "s2": 89,
+        "line": [
+          81,
+          82,
+          83,
+          84,
+          85,
+          86,
+          87,
+          88,
+          89
+        ],
+        "between": [
+          86,
+          87,
+          88,
+          89
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 89,
+        "s2": 0,
+        "line": [],
+        "between": [
+          0
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 89,
+        "s2": 4,
+        "line": [],
+        "between": [
+          4
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 89,
+        "s2": 40,
+        "line": [],
+        "between": [
+          40
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 89,
+        "s2": 44,
+        "line": [
+          8,
+          17,
+          26,
+          35,
+          44,
+          53,
+          62,
+          71,
+          80,
+          89
+        ],
+        "between": [
+          44,
+          53,
+          62,
+          71,
+          80
+        ],
+        "ray_pass": [
+          8,
+          17,
+          26,
+          35
+        ],
+        "leaper_pass": []
+      },
+      {
+        "s1": 89,
+        "s2": 45,
+        "line": [],
+        "between": [
+          45
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 89,
+        "s2": 63,
+        "line": [],
+        "between": [
+          63
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 89,
+        "s2": 64,
+        "line": [],
+        "between": [
+          64
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 89,
+        "s2": 76,
+        "line": [],
+        "between": [
+          76
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      },
+      {
+        "s1": 89,
+        "s2": 85,
+        "line": [
+          81,
+          82,
+          83,
+          84,
+          85,
+          86,
+          87,
+          88,
+          89
+        ],
+        "between": [
+          85,
+          86,
+          87,
+          88
+        ],
+        "ray_pass": [
+          81,
+          82,
+          83,
+          84
+        ],
+        "leaper_pass": []
+      },
+      {
+        "s1": 89,
+        "s2": 89,
+        "line": [],
+        "between": [
+          89
+        ],
+        "ray_pass": [],
+        "leaper_pass": []
+      }
+    ]
+  },
+  "expected_differences": [
+    {
+      "id": "king_outside_palace",
+      "label": "king_oob_2",
+      "sq": 2,
+      "core": [],
+      "nnue": [
+        3
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[KING] which gates Palace&s1; nnue only gates palace[to]. Meaningful only for illegal king squares.",
+      "fix": false
+    },
+    {
+      "id": "advisor_outside_palace",
+      "label": "advisor_oob_2",
+      "sq": 2,
+      "core": [],
+      "nnue": [
+        12
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[ADVISOR] Palace&s1 gate; nnue only gates palace[to].",
+      "fix": false
+    },
+    {
+      "id": "king_outside_palace",
+      "label": "king_oob_6",
+      "sq": 6,
+      "core": [],
+      "nnue": [
+        5
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[KING] which gates Palace&s1; nnue only gates palace[to]. Meaningful only for illegal king squares.",
+      "fix": false
+    },
+    {
+      "id": "advisor_outside_palace",
+      "label": "advisor_oob_6",
+      "sq": 6,
+      "core": [],
+      "nnue": [
+        14
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[ADVISOR] Palace&s1 gate; nnue only gates palace[to].",
+      "fix": false
+    },
+    {
+      "id": "king_outside_palace",
+      "label": "king_oob_11",
+      "sq": 11,
+      "core": [],
+      "nnue": [
+        12
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[KING] which gates Palace&s1; nnue only gates palace[to]. Meaningful only for illegal king squares.",
+      "fix": false
+    },
+    {
+      "id": "advisor_outside_palace",
+      "label": "advisor_oob_11",
+      "sq": 11,
+      "core": [],
+      "nnue": [
+        3,
+        21
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[ADVISOR] Palace&s1 gate; nnue only gates palace[to].",
+      "fix": false
+    },
+    {
+      "id": "king_outside_palace",
+      "label": "king_oob_15",
+      "sq": 15,
+      "core": [],
+      "nnue": [
+        14
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[KING] which gates Palace&s1; nnue only gates palace[to]. Meaningful only for illegal king squares.",
+      "fix": false
+    },
+    {
+      "id": "advisor_outside_palace",
+      "label": "advisor_oob_15",
+      "sq": 15,
+      "core": [],
+      "nnue": [
+        5,
+        23
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[ADVISOR] Palace&s1 gate; nnue only gates palace[to].",
+      "fix": false
+    },
+    {
+      "id": "king_outside_palace",
+      "label": "king_oob_20",
+      "sq": 20,
+      "core": [],
+      "nnue": [
+        21
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[KING] which gates Palace&s1; nnue only gates palace[to]. Meaningful only for illegal king squares.",
+      "fix": false
+    },
+    {
+      "id": "advisor_outside_palace",
+      "label": "advisor_oob_20",
+      "sq": 20,
+      "core": [],
+      "nnue": [
+        12
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[ADVISOR] Palace&s1 gate; nnue only gates palace[to].",
+      "fix": false
+    },
+    {
+      "id": "king_outside_palace",
+      "label": "king_oob_24",
+      "sq": 24,
+      "core": [],
+      "nnue": [
+        23
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[KING] which gates Palace&s1; nnue only gates palace[to]. Meaningful only for illegal king squares.",
+      "fix": false
+    },
+    {
+      "id": "advisor_outside_palace",
+      "label": "advisor_oob_24",
+      "sq": 24,
+      "core": [],
+      "nnue": [
+        14
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[ADVISOR] Palace&s1 gate; nnue only gates palace[to].",
+      "fix": false
+    },
+    {
+      "id": "advisor_outside_palace",
+      "label": "advisor_oob_29",
+      "sq": 29,
+      "core": [],
+      "nnue": [
+        21
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[ADVISOR] Palace&s1 gate; nnue only gates palace[to].",
+      "fix": false
+    },
+    {
+      "id": "king_outside_palace",
+      "label": "king_oob_30",
+      "sq": 30,
+      "core": [],
+      "nnue": [
+        21
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[KING] which gates Palace&s1; nnue only gates palace[to]. Meaningful only for illegal king squares.",
+      "fix": false
+    },
+    {
+      "id": "advisor_outside_palace",
+      "label": "advisor_oob_30",
+      "sq": 30,
+      "core": [],
+      "nnue": [
+        22
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[ADVISOR] Palace&s1 gate; nnue only gates palace[to].",
+      "fix": false
+    },
+    {
+      "id": "king_outside_palace",
+      "label": "king_oob_31",
+      "sq": 31,
+      "core": [],
+      "nnue": [
+        22
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[KING] which gates Palace&s1; nnue only gates palace[to]. Meaningful only for illegal king squares.",
+      "fix": false
+    },
+    {
+      "id": "advisor_outside_palace",
+      "label": "advisor_oob_31",
+      "sq": 31,
+      "core": [],
+      "nnue": [
+        21,
+        23
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[ADVISOR] Palace&s1 gate; nnue only gates palace[to].",
+      "fix": false
+    },
+    {
+      "id": "king_outside_palace",
+      "label": "king_oob_32",
+      "sq": 32,
+      "core": [],
+      "nnue": [
+        23
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[KING] which gates Palace&s1; nnue only gates palace[to]. Meaningful only for illegal king squares.",
+      "fix": false
+    },
+    {
+      "id": "advisor_outside_palace",
+      "label": "advisor_oob_32",
+      "sq": 32,
+      "core": [],
+      "nnue": [
+        22
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[ADVISOR] Palace&s1 gate; nnue only gates palace[to].",
+      "fix": false
+    },
+    {
+      "id": "advisor_outside_palace",
+      "label": "advisor_oob_33",
+      "sq": 33,
+      "core": [],
+      "nnue": [
+        23
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[ADVISOR] Palace&s1 gate; nnue only gates palace[to].",
+      "fix": false
+    },
+    {
+      "id": "advisor_outside_palace",
+      "label": "advisor_oob_56",
+      "sq": 56,
+      "core": [],
+      "nnue": [
+        66
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[ADVISOR] Palace&s1 gate; nnue only gates palace[to].",
+      "fix": false
+    },
+    {
+      "id": "king_outside_palace",
+      "label": "king_oob_57",
+      "sq": 57,
+      "core": [],
+      "nnue": [
+        66
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[KING] which gates Palace&s1; nnue only gates palace[to]. Meaningful only for illegal king squares.",
+      "fix": false
+    },
+    {
+      "id": "advisor_outside_palace",
+      "label": "advisor_oob_57",
+      "sq": 57,
+      "core": [],
+      "nnue": [
+        67
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[ADVISOR] Palace&s1 gate; nnue only gates palace[to].",
+      "fix": false
+    },
+    {
+      "id": "king_outside_palace",
+      "label": "king_oob_58",
+      "sq": 58,
+      "core": [],
+      "nnue": [
+        67
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[KING] which gates Palace&s1; nnue only gates palace[to]. Meaningful only for illegal king squares.",
+      "fix": false
+    },
+    {
+      "id": "advisor_outside_palace",
+      "label": "advisor_oob_58",
+      "sq": 58,
+      "core": [],
+      "nnue": [
+        66,
+        68
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[ADVISOR] Palace&s1 gate; nnue only gates palace[to].",
+      "fix": false
+    },
+    {
+      "id": "king_outside_palace",
+      "label": "king_oob_59",
+      "sq": 59,
+      "core": [],
+      "nnue": [
+        68
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[KING] which gates Palace&s1; nnue only gates palace[to]. Meaningful only for illegal king squares.",
+      "fix": false
+    },
+    {
+      "id": "advisor_outside_palace",
+      "label": "advisor_oob_59",
+      "sq": 59,
+      "core": [],
+      "nnue": [
+        67
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[ADVISOR] Palace&s1 gate; nnue only gates palace[to].",
+      "fix": false
+    },
+    {
+      "id": "advisor_outside_palace",
+      "label": "advisor_oob_60",
+      "sq": 60,
+      "core": [],
+      "nnue": [
+        68
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[ADVISOR] Palace&s1 gate; nnue only gates palace[to].",
+      "fix": false
+    },
+    {
+      "id": "king_outside_palace",
+      "label": "king_oob_65",
+      "sq": 65,
+      "core": [],
+      "nnue": [
+        66
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[KING] which gates Palace&s1; nnue only gates palace[to]. Meaningful only for illegal king squares.",
+      "fix": false
+    },
+    {
+      "id": "advisor_outside_palace",
+      "label": "advisor_oob_65",
+      "sq": 65,
+      "core": [],
+      "nnue": [
+        75
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[ADVISOR] Palace&s1 gate; nnue only gates palace[to].",
+      "fix": false
+    },
+    {
+      "id": "king_outside_palace",
+      "label": "king_oob_69",
+      "sq": 69,
+      "core": [],
+      "nnue": [
+        68
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[KING] which gates Palace&s1; nnue only gates palace[to]. Meaningful only for illegal king squares.",
+      "fix": false
+    },
+    {
+      "id": "advisor_outside_palace",
+      "label": "advisor_oob_69",
+      "sq": 69,
+      "core": [],
+      "nnue": [
+        77
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[ADVISOR] Palace&s1 gate; nnue only gates palace[to].",
+      "fix": false
+    },
+    {
+      "id": "king_outside_palace",
+      "label": "king_oob_74",
+      "sq": 74,
+      "core": [],
+      "nnue": [
+        75
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[KING] which gates Palace&s1; nnue only gates palace[to]. Meaningful only for illegal king squares.",
+      "fix": false
+    },
+    {
+      "id": "advisor_outside_palace",
+      "label": "advisor_oob_74",
+      "sq": 74,
+      "core": [],
+      "nnue": [
+        66,
+        84
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[ADVISOR] Palace&s1 gate; nnue only gates palace[to].",
+      "fix": false
+    },
+    {
+      "id": "king_outside_palace",
+      "label": "king_oob_78",
+      "sq": 78,
+      "core": [],
+      "nnue": [
+        77
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[KING] which gates Palace&s1; nnue only gates palace[to]. Meaningful only for illegal king squares.",
+      "fix": false
+    },
+    {
+      "id": "advisor_outside_palace",
+      "label": "advisor_oob_78",
+      "sq": 78,
+      "core": [],
+      "nnue": [
+        68,
+        86
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[ADVISOR] Palace&s1 gate; nnue only gates palace[to].",
+      "fix": false
+    },
+    {
+      "id": "king_outside_palace",
+      "label": "king_oob_83",
+      "sq": 83,
+      "core": [],
+      "nnue": [
+        84
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[KING] which gates Palace&s1; nnue only gates palace[to]. Meaningful only for illegal king squares.",
+      "fix": false
+    },
+    {
+      "id": "advisor_outside_palace",
+      "label": "advisor_oob_83",
+      "sq": 83,
+      "core": [],
+      "nnue": [
+        75
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[ADVISOR] Palace&s1 gate; nnue only gates palace[to].",
+      "fix": false
+    },
+    {
+      "id": "king_outside_palace",
+      "label": "king_oob_87",
+      "sq": 87,
+      "core": [],
+      "nnue": [
+        86
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[KING] which gates Palace&s1; nnue only gates palace[to]. Meaningful only for illegal king squares.",
+      "fix": false
+    },
+    {
+      "id": "advisor_outside_palace",
+      "label": "advisor_oob_87",
+      "sq": 87,
+      "core": [],
+      "nnue": [
+        77
+      ],
+      "upstream": [],
+      "verdict": "core matches upstream PseudoAttacks[ADVISOR] Palace&s1 gate; nnue only gates palace[to].",
+      "fix": false
+    },
+    {
+      "id": "nnue_missing_query_tables",
+      "label": "ray_pass_leaper_pass_line_between",
+      "verdict": "core/attacks.gd builds Line/Between/RayPass/LeaperPass like attacks.cpp; nnue/attacks.gd has no equivalents (threat path only). Not a formula bug.",
+      "fix": false
+    },
+    {
+      "id": "nnue_missing_knight_to",
+      "label": "KNIGHT_TO",
+      "verdict": "core exposes KNIGHT_TO (attackers_to / gives_check helpers); nnue lame_leaper_path does not swap for KNIGHT_TO. Core-only API.",
+      "fix": false
+    }
+  ]
+}

@@ -1129,6 +1129,111 @@
         20,
         24
       ]
+    },
+    {
+      "label": "cannon_screen_a0_a2_a4",
+      "pt": 3,
+      "sq": 0,
+      "occ": [
+        18,
+        36
+      ],
+      "attacks": [
+        27,
+        36
+      ]
+    },
+    {
+      "label": "cannon_double_hurdle_a0",
+      "pt": 3,
+      "sq": 0,
+      "occ": [
+        9,
+        18,
+        36
+      ],
+      "attacks": [
+        18
+      ]
+    },
+    {
+      "label": "cannon_edge_file_a_rank",
+      "pt": 3,
+      "sq": 0,
+      "occ": [
+        81
+      ],
+      "attacks": []
+    },
+    {
+      "label": "rook_edge_stop_a3",
+      "pt": 1,
+      "sq": 0,
+      "occ": [
+        27
+      ],
+      "attacks": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        18,
+        27
+      ]
+    },
+    {
+      "label": "rook_edge_63_64",
+      "pt": 1,
+      "sq": 63,
+      "occ": [
+        64
+      ],
+      "attacks": [
+        0,
+        9,
+        18,
+        27,
+        36,
+        45,
+        54,
+        64,
+        72,
+        81
+      ]
+    },
+    {
+      "label": "knight_leg_e4_north",
+      "pt": 5,
+      "sq": 40,
+      "occ": [
+        49
+      ],
+      "attacks": [
+        21,
+        23,
+        29,
+        33,
+        47,
+        51
+      ]
+    },
+    {
+      "label": "bishop_eye_c2_ne",
+      "pt": 6,
+      "sq": 20,
+      "occ": [
+        30
+      ],
+      "attacks": [
+        0,
+        4,
+        36
+      ]
     }
   ]
 }

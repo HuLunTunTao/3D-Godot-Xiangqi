@@ -167,3 +167,16 @@ func test_generic_blocker_fixture_file_if_present() -> void:
 		var occ_bb := BB.from_occ90(occ)
 		var got_bb := A.attacks_bb(pt, sq, occ_bb[0], occ_bb[1])
 		_assert_set_eq(_bb_squares_arr(got_bb), want, case.get("label", "case"))
+		# Dual-track: shared rook/cannon/knight/bishop cases must also match NNUE.
+		if pt == T.ROOK or pt == T.CANNON:
+			_assert_set_eq(
+				XAttacks.sliding_attack(pt, sq, occ),
+				want,
+				"nnue " + str(case.get("label", "case"))
+			)
+		elif pt == T.KNIGHT or pt == T.BISHOP:
+			_assert_set_eq(
+				XAttacks.lame_leaper_attack(pt, sq, occ),
+				want,
+				"nnue " + str(case.get("label", "case"))
+			)
