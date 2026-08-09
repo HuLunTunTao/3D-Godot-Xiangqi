@@ -1,0 +1,16 @@
+{"id":"startpos","fen":"rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR w - - 0 1","ply":0,"claimed":false,"value":32002,"value_kind":"none","rule60":0,"check10_w":0,"check10_b":0,"side":"w","soft":false}
+{"id":"rule60_119_no_claim","fen":"rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR w - - 119 60","ply":0,"claimed":false,"value":32002,"value_kind":"none","rule60":119,"check10_w":0,"check10_b":0,"side":"w","soft":false}
+{"id":"rule60_120_draw","fen":"rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C2C4/9/RNBAKABNR b - - 120 60","ply":0,"claimed":true,"value":0,"value_kind":"draw","rule60":120,"check10_w":0,"check10_b":0,"side":"b","soft":false}
+{"id":"insuff_advisors","fen":"3aka3/9/9/9/9/9/9/9/9/5K3 w - - 0 1","ply":0,"claimed":true,"value":0,"value_kind":"draw","rule60":0,"check10_w":0,"check10_b":0,"side":"w","soft":false}
+{"id":"perp_check_2fold","fen":"4k4/9/4R4/9/9/9/9/9/9/3K5 b - - 8 5","ply":0,"claimed":true,"value":32000,"value_kind":"mate","rule60":8,"check10_w":4,"check10_b":0,"side":"b","soft":false}
+{"id":"perp_check_1fold_root","fen":"4k4/9/4R4/9/9/9/9/9/9/3K5 b - - 4 3","ply":0,"claimed":false,"value":32002,"value_kind":"none","rule60":4,"check10_w":2,"check10_b":0,"side":"b","soft":false}
+{"id":"quiet_rep_2fold","fen":"3k1a3/9/9/9/9/9/P8/9/9/3A1K3 w - - 8 5","ply":0,"claimed":true,"value":0,"value_kind":"draw","rule60":8,"check10_w":0,"check10_b":0,"side":"w","soft":false}
+{"id":"quiet_rep_1fold_root","fen":"3k1a3/9/9/9/9/9/P8/9/9/3A1K3 w - - 4 3","ply":0,"claimed":false,"value":32002,"value_kind":"none","rule60":4,"check10_w":0,"check10_b":0,"side":"w","soft":false}
+{"id":"quiet_rep_1fold_ply5","fen":"3k1a3/9/9/9/9/9/P8/9/9/3A1K3 w - - 4 3","ply":5,"claimed":true,"value":0,"value_kind":"draw","rule60":4,"check10_w":0,"check10_b":0,"side":"w","soft":false}
+{"id":"chase_cannon_2fold","fen":"3k1a3/9/9/1c7/9/1R7/9/9/9/3A1K3 w - - 8 5","ply":0,"claimed":true,"value":0,"value_kind":"draw","rule60":8,"check10_w":0,"check10_b":0,"side":"w","soft":false}
+{"id":"chase_cannon_1fold_ply5","fen":"3k1a3/9/9/1c7/9/1R7/9/9/9/3A1K3 w - - 4 3","ply":5,"claimed":true,"value":0,"value_kind":"draw","rule60":4,"check10_w":0,"check10_b":0,"side":"w","soft":false}
+{"id":"chase_cont_2fold","fen":"3k1a3/9/9/1c7/9/1R7/9/9/9/3A1K3 b - - 8 5","ply":0,"claimed":true,"value":32000,"value_kind":"mate","rule60":8,"check10_w":0,"check10_b":0,"side":"b","soft":false}
+{"id":"chase_soft_1fold_ply5","fen":"3k1a3/9/9/1c7/9/1R7/9/9/9/3AK4 b - - 5 3","ply":5,"claimed":false,"value":31995,"value_kind":"mate","rule60":5,"check10_w":0,"check10_b":0,"side":"b","soft":true}
+{"id":"chased_rook_vs_knight","fen":"3k1a3/9/9/2n6/9/2R6/9/9/9/3A1K3 w - - 0 1","ply":0,"claimed":false,"value":32002,"value_kind":"none","rule60":0,"check10_w":0,"check10_b":0,"side":"w","chased_w":1,"chased_b":0,"soft":false}
+{"id":"chased_rook_vs_cannon","fen":"3k1a3/9/9/2c6/9/2R6/9/9/9/3A1K3 w - - 0 1","ply":0,"claimed":false,"value":32002,"value_kind":"none","rule60":0,"check10_w":0,"check10_b":0,"side":"w","chased_w":1,"chased_b":0,"soft":false}
+{"id":"capture_resets_rule60","fen":"3k5/9/9/4P4/9/9/9/9/9/5K3 b - - 0 20","ply":0,"claimed":false,"value":32002,"value_kind":"none","rule60":0,"check10_w":0,"check10_b":0,"side":"b","soft":false}

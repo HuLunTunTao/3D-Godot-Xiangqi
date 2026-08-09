@@ -66,3 +66,30 @@ func test_chase_legal_king_flee() -> void:
 	assert_eq(pos.set_fen("4k4/9/4R4/9/9/9/9/9/9/3K5 b - - 0 1"), OK)
 	var flee: int = T.uci_to_move("e9f9")
 	assert_true(Rules.chase_legal(pos, flee))
+
+
+func test_soft_chase_mate_preserves_value_when_not_claimed() -> void:
+	## Upstream oracle: after preamble + 1 chase cycle at ply=5, rule_judge returns
+	## claimed=false with value=mate_in(5)=31995 (soft 2-fold for search window clamp).
+	var pos = Pos.new()
+	assert_eq(pos.set_fen("3k1a3/9/9/1c7/9/1R7/9/9/9/3A1K3 w - - 0 1"), OK)
+	for uci in ["f0e0", "b6a6", "b4a4", "a6b6", "a4b4"]:
+		var m: int = T.uci_to_move(uci)
+		assert_true(pos.pseudo_legal(m) and pos.legal(m), uci)
+		pos.do_move(m)
+	var rj: Dictionary = pos.rule_judge(5)
+	assert_false(rj.get("claimed", true), "soft result is not a hard claim")
+	assert_eq(int(rj.get("value", T.VALUE_NONE)), T.mate_in(5))
+
+
+func test_continuous_chase_2fold_claims_mate() -> void:
+	## Black flees first under rook attack; 2 cycles → stm (black) mates (white chased).
+	var pos = Pos.new()
+	assert_eq(pos.set_fen("3k1a3/9/9/1c7/9/1R7/9/9/9/3A1K3 b - - 0 1"), OK)
+	for uci in ["b6a6", "b4a4", "a6b6", "a4b4", "b6a6", "b4a4", "a6b6", "a4b4"]:
+		var m: int = T.uci_to_move(uci)
+		assert_true(pos.legal(m), uci)
+		pos.do_move(m)
+	var rj: Dictionary = pos.rule_judge(0)
+	assert_true(rj.get("claimed", false))
+	assert_true(T.is_win(int(rj.get("value", T.VALUE_NONE))))

@@ -1,0 +1,106 @@
+# Rules observable corpus for upstream Position::rule_judge differential.
+# Fed to /tmp/pikafish-rules-oracle/src/pikafish and Godot diff_rules_oracle.gd
+
+# Baseline
+CASE startpos
+FEN rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR w - - 0 1
+PLY 0
+END
+
+# rule60: FEN max is 119; one quiet move reaches 120 claim
+CASE rule60_119_no_claim
+FEN rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR w - - 119 60
+PLY 0
+END
+
+CASE rule60_120_draw
+FEN rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR w - - 119 60
+MOVES h2e2
+PLY 0
+END
+
+# Insufficient material (no pawns, no majors)
+CASE insuff_advisors
+FEN 3aka3/9/9/9/9/9/9/9/9/5K3 w - - 0 1
+PLY 0
+END
+
+# Perpetual check: 2 cycles → hard claim mate for stm (checker loses)
+CASE perp_check_2fold
+FEN 4k4/9/4R4/9/9/9/9/9/9/3K5 b - - 0 1
+MOVES e9f9 e7f7 f9e9 f7e7 e9f9 e7f7 f9e9 f7e7
+PLY 0
+END
+
+# 1 cycle at root: no claim
+CASE perp_check_1fold_root
+FEN 4k4/9/4R4/9/9/9/9/9/9/3K5 b - - 0 1
+MOVES e9f9 e7f7 f9e9 f7e7
+PLY 0
+END
+
+# Quiet non-check repetition (pawn avoids insuff-material short-circuit)
+CASE quiet_rep_2fold
+FEN 3k1a3/9/9/9/9/9/P8/9/9/3A1K3 w - - 0 1
+MOVES f0e0 d9d8 e0f0 d8d9 f0e0 d9d8 e0f0 d8d9
+PLY 0
+END
+
+CASE quiet_rep_1fold_root
+FEN 3k1a3/9/9/9/9/9/P8/9/9/3A1K3 w - - 0 1
+MOVES f0e0 d9d8 e0f0 d8d9
+PLY 0
+END
+
+CASE quiet_rep_1fold_ply5
+FEN 3k1a3/9/9/9/9/9/P8/9/9/3A1K3 w - - 0 1
+MOVES f0e0 d9d8 e0f0 d8d9
+PLY 5
+END
+
+# Long chase candidate: rook vs cannon horizontal (detect_chases)
+CASE chase_cannon_2fold
+FEN 3k1a3/9/9/1c7/9/1R7/9/9/9/3A1K3 w - - 0 1
+MOVES b4a4 b6a6 a4b4 a6b6 b4a4 b6a6 a4b4 a6b6
+PLY 0
+END
+
+CASE chase_cannon_1fold_ply5
+FEN 3k1a3/9/9/1c7/9/1R7/9/9/9/3A1K3 w - - 0 1
+MOVES b4a4 b6a6 a4b4 a6b6
+PLY 5
+END
+
+# Continuous one-sided chase (black flees first): 2-fold → hard mate for stm
+CASE chase_cont_2fold
+FEN 3k1a3/9/9/1c7/9/1R7/9/9/9/3A1K3 b - - 0 1
+MOVES b6a6 b4a4 a6b6 a4b4 b6a6 b4a4 a6b6 a4b4
+PLY 0
+END
+
+# Soft 2-fold chase mate: claimed=false but value=mate_in(ply) (search clamps window)
+CASE chase_soft_1fold_ply5
+FEN 3k1a3/9/9/1c7/9/1R7/9/9/9/3A1K3 w - - 0 1
+MOVES f0e0 b6a6 b4a4 a6b6 a4b4
+PLY 5
+END
+
+# chased bitset smoke (not a claim)
+CASE chased_rook_vs_knight
+FEN 3k1a3/9/9/2n6/9/2R6/9/9/9/3A1K3 w - - 0 1
+CHASED
+PLY 0
+END
+
+CASE chased_rook_vs_cannon
+FEN 3k1a3/9/9/2c6/9/2R6/9/9/9/3A1K3 w - - 0 1
+CHASED
+PLY 0
+END
+
+# Capture resets rule60 (Position semantic; then no claim)
+CASE capture_resets_rule60
+FEN 3k5/9/9/4p4/4P4/9/9/9/9/5K3 w - - 50 20
+MOVES e5e6
+PLY 0
+END
