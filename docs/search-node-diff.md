@@ -37,7 +37,21 @@ Godot --headless --path . -s res://src/test/diff_search_nodes.gd
 
 `| Case | PF Depth | GD Depth | PF Value | GD Value | PF CP | GD CP | Bestmove Match |`
 
-## 当前基线
+## 当前基线（2026-08-09，S1 remediation 后）
 
-重新跑差分后以报告 `summary` 为准。历史（2026-08-09 及更早）在未归一化单位前的
-`exact_score` / “CP 可直接比 Value”结论作废。
+旧报告在未区分 Value / UCI cp、且 node accounting 未对齐前的 `exact_score` /
+“CP 可直接比 Value”结论一律作废（`measurement invalid / pre-node-parity`）。
+
+| 指标 | 结果 |
+|---|---:|
+| 对照运行 | 8 |
+| addon 合法最佳着 | 8 / 8 |
+| 最佳着精确一致 | 5 / 8 |
+| Value 精确一致（需 PF instrumentation） | 0 / 8 |
+| CP 精确一致（`to_cp`） | 0 / 8 |
+| mean \|Δcp\| | 35.88 |
+| median \|Δcp\| | 23.50 |
+
+`startpos@256`：d1 已与上游对齐（Value 55 / cp 14）；最终仍停在 completed_depth=2
+（Value 199 / cp 50），上游为 depth4 upperbound（cp 116）。下一步应对齐更深 ID
+路径上的 earliest remaining mismatch（当前最稳：d2 根分 199 vs ≈340），勿再混比单位。
