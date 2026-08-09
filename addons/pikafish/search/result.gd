@@ -6,9 +6,8 @@ extends RefCounted
 
 var bestmove: int = 0
 var ponder: int = 0
-## Same number emitted by official UCI `info score cp`: Pikafish internal
-## Value units (the `eval` command's human WDL conversion is deliberately not
-## applied here).
+## Internal search Value (STM). Official UCI `info score cp` applies
+## `UCIEngine::to_cp` on top of this; use `PikafishUciScore.to_cp` to convert.
 var score: int = 0
 var mate: int = 0  # 0 if not mate; else mate distance (signed, STM view)
 var depth: int = 0

@@ -5,7 +5,7 @@ extends RefCounted
 
 var depth: int = 0
 var seldepth: int = 0
-## Official UCI `score cp` internal Value, not a display/WDL conversion.
+## Internal search Value (STM). Convert with `PikafishUciScore.to_cp` for UCI cp.
 var score: int = 0
 var mate: int = 0
 var nodes: int = 0

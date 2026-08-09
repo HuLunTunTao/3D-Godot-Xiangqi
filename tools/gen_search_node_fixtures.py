@@ -4,6 +4,9 @@
 The fixture is intentionally separate from depth_corpus.json: node budgets make
 search divergence measurable even when two engines finish different ID depths.
 Dev-only; never used by the addon at runtime.
+
+Units: UCI `score cp` is to_cp(Value), NOT internal Value. Optional
+`internal_value` may be filled from `info string raw_value N` instrumentation.
 """
 from __future__ import annotations
 
@@ -21,6 +24,7 @@ INFO_RE = re.compile(
     r"^info depth (?P<depth>\d+)\b.*?\bscore (?P<type>cp|mate) (?P<score>-?\d+)\b"
     r".*?\bnodes (?P<nodes>\d+)\b(?:.*?\bpv (?P<pv>.+))?$"
 )
+RAW_VALUE_RE = re.compile(r"^info string raw_value (?P<value>-?\d+)\b")
 BEST_RE = re.compile(r"^bestmove\s+([a-i][0-9][a-i][0-9]|\(none\))")
 DEFAULT_LABELS = {"startpos", "ref2_rook_check", "ref5_rook_lift", "ref20_mate_net"}
 
@@ -65,32 +69,44 @@ class UciSession:
         self.cmd(f"position fen {fen}")
         self.cmd(f"go nodes {budget}")
         infos: list[dict] = []
+        raw_values: list[int] = []
         bestmove = ""
         while True:
             line = self.line(timeout=300.0)
+            raw = RAW_VALUE_RE.match(line)
+            if raw:
+                raw_values.append(int(raw.group("value")))
+                continue
             match = INFO_RE.match(line)
             if match:
                 pv = (match.group("pv") or "").split()
-                infos.append({
+                entry = {
                     "depth": int(match.group("depth")),
                     "score": {"type": match.group("type"), "value": int(match.group("score"))},
                     "nodes": int(match.group("nodes")),
                     "pv": pv,
-                })
+                }
+                if raw_values:
+                    entry["internal_value"] = raw_values[-1]
+                infos.append(entry)
                 continue
             match = BEST_RE.match(line)
             if match:
                 bestmove = match.group(1)
                 break
         final = next((entry for entry in reversed(infos) if entry["pv"]), None)
-        return {
+        out = {
             "budget": budget,
             "bestmove": bestmove,
+            # UCI score cp / mate — NOT internal Value.
             "score": final["score"] if final else None,
             "nodes": final["nodes"] if final else 0,
             "completed_depth": final["depth"] if final else 0,
             "pv": final["pv"][:12] if final else [],
         }
+        if final and "internal_value" in final:
+            out["internal_value"] = final["internal_value"]
+        return out
 
     def close(self) -> None:
         try:
@@ -130,7 +146,11 @@ def main() -> int:
         "oracle": str(args.oracle),
         "threads": 1,
         "positions": records,
-        "notes": "UCI go nodes N; node count can slightly exceed N at a stop-check boundary.",
+        "notes": (
+            "UCI go nodes N; node count can slightly exceed N at a stop-check boundary. "
+            "score.value for type=cp is UCI to_cp(Value), not internal Value. "
+            "Optional internal_value comes from info string raw_value instrumentation."
+        ),
     }
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(payload, indent=2) + "\n")
