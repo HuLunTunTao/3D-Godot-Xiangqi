@@ -217,13 +217,12 @@ func search(depth_limit: int, node_limit: int = 0) -> Dictionary:
 		var delta: int = T.VALUE_INFINITE
 		var score: int = T.VALUE_NONE
 
-		if enable_aspiration and depth >= 4 and not root_moves.is_empty():
+		if enable_aspiration and not root_moves.is_empty():
+			# Upstream iterative deepening: always set alpha/beta/optimism from
+			# RootMove averageScore / meanSquaredScore (including -VALUE_INFINITE
+			# / -VALUE_INFINITE^2 on depth 1). No depth>=4 gate; no avg fallback.
 			var root_average: int = int(root_moves[0].average_score)
-			if root_average == -T.VALUE_INFINITE:
-				root_average = avg_score
 			var root_variance: int = int(root_moves[0].mean_squared_score)
-			if root_variance < 0:
-				root_variance = 0
 			delta = 10 + absi(root_variance) / 39605
 			alpha = maxi(root_average - delta, -T.VALUE_INFINITE)
 			beta = mini(root_average + delta, T.VALUE_INFINITE)
