@@ -48,12 +48,11 @@ func test_search_rule_judge_draw_uses_value_draw() -> void:
 	for _i in range(8):
 		w._pv_stack.append(PackedInt32Array())
 
-	# nodes becomes 1 inside _search before rule_judge → value_draw(1) = -1
+	# Nodes only advance in do_move (upstream); entry itself does not ++nodes.
 	w.nodes = 0
 	var score_odd: int = w._search(Worker.NODE_PV, 1, -T.VALUE_INFINITE, T.VALUE_INFINITE, 1, false)
 	assert_eq(score_odd, T.VALUE_DRAW - 1)
 
-	# nodes becomes 2 → value_draw(2) = +1
-	w.nodes = 1
+	w.nodes = 2
 	var score_even: int = w._search(Worker.NODE_PV, 1, -T.VALUE_INFINITE, T.VALUE_INFINITE, 1, false)
 	assert_eq(score_even, T.VALUE_DRAW - 1 + 2)

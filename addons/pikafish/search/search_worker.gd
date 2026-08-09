@@ -132,6 +132,8 @@ func _cont_hist_for_picker(ply: int) -> PackedInt32Array:
 
 
 func _do_move_synced(m: int) -> void:
+	## Upstream Worker::do_move increments nodes here (not at search/qsearch entry).
+	nodes += 1
 	pos.do_move(m)
 	evaluator.do_move(m)
 
@@ -315,7 +317,6 @@ func _search_root(depth: int, alpha: int, beta: int) -> int:
 	## RootMove counterpart of upstream search<Root>. Root moves are deliberately
 	## not yielded by MovePicker: their PV, score history and stable ordering are
 	## persistent state across iterative deepening.
-	nodes += 1
 	if _maybe_check_stop():
 		return alpha
 	if root_moves.is_empty():
@@ -514,7 +515,6 @@ func _search(
 	if ply >= 0 and ply < _pv_stack.size():
 		_pv_stack[ply] = PackedInt32Array()
 
-	nodes += 1
 	if ply > seldepth:
 		seldepth = ply
 	if _maybe_check_stop():
@@ -888,7 +888,6 @@ func _update_histories_on_cutoff(
 func _qsearch(pv_node: bool, alpha: int, beta: int, ply: int) -> int:
 	if ply >= 0 and ply < _pv_stack.size():
 		_pv_stack[ply] = PackedInt32Array()
-	nodes += 1
 	if ply > seldepth:
 		seldepth = ply
 	if ply > 32:
