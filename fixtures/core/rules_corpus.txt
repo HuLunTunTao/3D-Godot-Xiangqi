@@ -85,6 +85,13 @@ MOVES f0e0 b6a6 b4a4 a6b6 a4b4
 PLY 5
 END
 
+# Soft 2-fold perpetual check: 1 cycle + ply>i → soft mate_in (search clamps window)
+CASE perp_check_soft_1fold_ply5
+FEN 4k4/9/4R4/9/9/9/9/9/9/3K5 b - - 0 1
+MOVES e9f9 e7f7 f9e9 f7e7
+PLY 5
+END
+
 # chased bitset smoke (not a claim)
 CASE chased_rook_vs_knight
 FEN 3k1a3/9/9/2n6/9/2R6/9/9/9/3A1K3 w - - 0 1

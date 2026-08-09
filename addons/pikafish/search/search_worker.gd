@@ -520,11 +520,18 @@ func _search(
 	if _maybe_check_stop():
 		return alpha
 
-	# Upstream Step 2: rule_judge claim → DRAW uses value_draw(nodes).
-	var rj: Dictionary = pos.rule_judge(ply)
-	if rj.get("claimed", false):
-		var rj_value: int = int(rj["value"])
-		return _value_draw() if rj_value == T.VALUE_DRAW else rj_value
+	# Upstream Step 2 (search.cpp ~720–738): rule_judge only off-root.
+	# claimed → return (DRAW via value_draw); soft → clamp α/β, do not return mate.
+	if not root_node:
+		var rj: Dictionary = pos.rule_judge(ply)
+		var rj_value: int = int(rj.get("value", T.VALUE_NONE))
+		if rj.get("claimed", false):
+			return _value_draw() if rj_value == T.VALUE_DRAW else rj_value
+		elif rj_value != T.VALUE_NONE:
+			if rj_value > T.VALUE_DRAW:
+				alpha = maxi(alpha, T.VALUE_DRAW - 1)
+			else:
+				beta = mini(beta, T.VALUE_DRAW + 1)
 
 	if depth <= 0:
 		return _qsearch(pv_node, alpha, beta, ply)
@@ -889,9 +896,18 @@ func _qsearch(pv_node: bool, alpha: int, beta: int, ply: int) -> int:
 	if _maybe_check_stop():
 		return alpha
 
+	# Upstream qsearch Step 2 (search.cpp ~1567–1586): claimed return; soft clamp + cutoff.
 	var rj: Dictionary = pos.rule_judge(ply)
+	var rj_value: int = int(rj.get("value", T.VALUE_NONE))
 	if rj.get("claimed", false):
-		return int(rj["value"])
+		return rj_value
+	elif rj_value != T.VALUE_NONE:
+		if rj_value > T.VALUE_DRAW:
+			alpha = maxi(alpha, T.VALUE_DRAW)
+		else:
+			beta = mini(beta, T.VALUE_DRAW)
+		if alpha >= beta:
+			return alpha
 
 	var tt_hit: Dictionary = _tt_probe()
 	var tt_move := T.MOVE_NONE
