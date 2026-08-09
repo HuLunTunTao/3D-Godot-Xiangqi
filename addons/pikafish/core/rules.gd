@@ -10,7 +10,9 @@ const A = preload("res://addons/pikafish/core/attacks.gd")
 const MG = preload("res://addons/pikafish/core/movegen.gd")
 
 
-## Returns {"claimed": bool, "value": int}. value meaningful only when claimed.
+## Returns {"claimed": bool, "value": int}.
+## Upstream out-param: claimed=true → hard claim; claimed=false with value!=VALUE_NONE → soft
+## 2-fold mate/chase (search clamps alpha/beta). rule60 / insufficient still override after loop.
 static func rule_judge(pos: RefCounted, ply: int = 0) -> Dictionary:
 	## Upstream: Position::rule_judge
 	var st_i: int = pos.st()
@@ -23,6 +25,8 @@ static func rule_judge(pos: RefCounted, ply: int = 0) -> Dictionary:
 	)
 	var key_now: int = stack.key[st_i]
 	var filter_slot: int = key_now & ((1 << 14) - 1)
+	# Upstream Value& result left set when returning false after a 2-fold mate/chase.
+	var soft_value: int = T.VALUE_NONE
 
 	if end >= 4 and pos.filter[filter_slot] >= 1:
 		var cnt := 0
@@ -53,6 +57,8 @@ static func rule_judge(pos: RefCounted, ply: int = 0) -> Dictionary:
 					if result_value == T.VALUE_DRAW or cnt == 2:
 						return {"claimed": true, "value": result_value}
 
+					# Non-draw 2-fold (mate/chase): may hard-claim or leave soft result.
+					soft_value = result_value
 					if pos.filter[filter_slot] <= 1:
 						if stack.rule60[st_i] < 120 and st_i >= 1 and stp >= 1 \
 								and stack.key[st_i - 1] == stack.key[stp - 1]:
@@ -100,10 +106,11 @@ static func rule_judge(pos: RefCounted, ply: int = 0) -> Dictionary:
 					var n3: int = MG.generate(pos, MG.GEN_LEGAL, buf3)
 					pos.undo_move(buf2[mi])
 					if n3 == 0:
-						return {"claimed": false, "value": T.VALUE_NONE}
+						# Upstream returns false without clearing a prior soft result.
+						return {"claimed": false, "value": soft_value}
 			return {"claimed": true, "value": T.VALUE_DRAW}
 
-	return {"claimed": false, "value": T.VALUE_NONE}
+	return {"claimed": false, "value": soft_value}
 
 
 static func _has_checkers(pos: RefCounted, idx: int) -> bool:
