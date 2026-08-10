@@ -53,5 +53,13 @@ Godot --headless --path . -s res://src/test/diff_search_nodes.gd
 | median \|Δcp\| | 23.50 |
 
 `startpos@256`：d1 已与上游对齐（Value 55 / cp 14）；最终仍停在 completed_depth=2
-（Value 199 / cp 50），上游为 depth4 upperbound（cp 116）。下一步应对齐更深 ID
-路径上的 earliest remaining mismatch（当前最稳：d2 根分 199 vs ≈340），勿再混比单位。
+（Value 199 / cp 50），上游为 depth4 upperbound（cp 116）。
+
+## Usability Candidate 冻结（2026-08-10，S2 qsearch remediation 后）
+
+**状态：Usability Candidate（SearchParity 自动推进暂停）**
+
+- 已修复：`_qsearch` TT stand-pat（消费 TT eval/value）+ fail-high softbound `(467*best+557*beta)/1024`（commit `dd7ec83`）。
+- first-divergence path `d2/b2e2/h7h0/qsearch`：GD 现返回 262，与 PF 对齐。
+- d2 root 仍未与 PF 收敛（GD ≈199/cp50 vs PF ≈338/cp85），主因是次要缺口（Step13 shallow pruning 等），**不**自动进入 S3/LMR/History/pruning。
+- 不全等于 PF ≠ 继续改代码的充分理由；后续以可用性与性能验收为主。
