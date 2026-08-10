@@ -907,31 +907,66 @@ func _qsearch(pv_node: bool, alpha: int, beta: int, ply: int) -> int:
 		if alpha >= beta:
 			return alpha
 
+	# Upstream qsearch Step 3–4 (search.cpp): TT cutoff, TT eval/value stand-pat, softbound.
 	var tt_hit: Dictionary = _tt_probe()
 	var tt_move := T.MOVE_NONE
+	var tt_value: int = T.VALUE_NONE
+	var tt_eval: int = T.VALUE_NONE
+	var tt_depth: int = T.DEPTH_NONE
+	var tt_bound: int = T.BOUND_NONE
 	var write_index: int = int(tt_hit.get("write_index", -1))
-	if tt_hit.get("found", false):
+	var found: bool = bool(tt_hit.get("found", false))
+	if found:
 		tt_move = int(tt_hit.get("move", T.MOVE_NONE))
-		var tt_value: int = tt.value_from_tt(int(tt_hit["value"]), ply, pos.rule60_count())
-		var tt_bound: int = int(tt_hit["bound"])
+		tt_value = tt.value_from_tt(int(tt_hit["value"]), ply, pos.rule60_count())
+		tt_eval = int(tt_hit["eval"])
+		tt_depth = int(tt_hit["depth"])
+		tt_bound = int(tt_hit["bound"])
 		if (
 			not pv_node
+			and tt_depth >= T.DEPTH_QS
 			and T.is_valid_value(tt_value)
 			and (tt_bound & (T.BOUND_LOWER if tt_value >= beta else T.BOUND_UPPER)) != 0
 		):
 			return tt_value
 
-	var stand: int = _eval()
-	var best_value: int = stand
-	if stand >= beta:
-		if tt != null and write_index >= 0 and not tt_hit.get("found", false):
-			tt.write(
-				write_index, pos.key(), tt.value_to_tt(stand, ply), false,
-				T.BOUND_LOWER, T.DEPTH_QS, T.MOVE_NONE, stand
-			)
-		return stand
-	if stand > alpha:
-		alpha = stand
+	var chk: Array = pos.checkers()
+	var in_check: bool = chk[0] != 0 or chk[1] != 0
+	var unadjusted_static_eval: int = T.VALUE_NONE
+	var best_value: int
+	# GDS-DIVERGENCE: SEMANTIC — correction history skipped in qsearch (S2 secondary gap).
+	if in_check:
+		best_value = -T.VALUE_INFINITE
+	else:
+		if found:
+			unadjusted_static_eval = tt_eval
+			if not T.is_valid_value(unadjusted_static_eval):
+				unadjusted_static_eval = _eval()
+			best_value = unadjusted_static_eval
+			# ttValue can be used as a better position evaluation
+			if (
+				T.is_valid_value(tt_value)
+				and not T.is_decisive(tt_value)
+				and (tt_bound & (T.BOUND_LOWER if tt_value > best_value else T.BOUND_UPPER)) != 0
+			):
+				best_value = tt_value
+		else:
+			unadjusted_static_eval = _eval()
+			best_value = unadjusted_static_eval
+
+		# Stand pat. Softbound then optional TT save when !ttHit.
+		if best_value >= beta:
+			if not T.is_decisive(best_value):
+				best_value = (467 * best_value + 557 * beta) / 1024
+			if not found and tt != null and write_index >= 0:
+				tt.write(
+					write_index, pos.key(), T.VALUE_NONE, false,
+					T.BOUND_LOWER, T.DEPTH_UNSEARCHED, T.MOVE_NONE, unadjusted_static_eval
+				)
+			return best_value
+
+		if best_value > alpha:
+			alpha = best_value
 
 	var picker = MP.new()
 	picker.init_main(pos, tt_move, 0, history, ply, _cont_hist_for_picker(ply))
@@ -954,7 +989,7 @@ func _qsearch(pv_node: bool, alpha: int, beta: int, ply: int) -> int:
 			if tt != null and write_index >= 0:
 				tt.write(
 					write_index, pos.key(), tt.value_to_tt(score, ply), pv_node,
-					T.BOUND_LOWER, T.DEPTH_QS, m, stand
+					T.BOUND_LOWER, T.DEPTH_QS, m, unadjusted_static_eval
 				)
 			return score
 		if score > alpha:
@@ -969,7 +1004,7 @@ func _qsearch(pv_node: bool, alpha: int, beta: int, ply: int) -> int:
 		var bound: int = T.BOUND_EXACT if pv_node and local_best != T.MOVE_NONE else T.BOUND_UPPER
 		tt.write(
 			write_index, pos.key(), tt.value_to_tt(best_value, ply), pv_node,
-			bound, T.DEPTH_QS, local_best, stand
+			bound, T.DEPTH_QS, local_best, unadjusted_static_eval
 		)
 	return best_value
 
