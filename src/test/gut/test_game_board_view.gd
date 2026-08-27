@@ -1,0 +1,43 @@
+extends GutTest
+
+const BoardView = preload("res://src/game/board_view.gd")
+const OrbitCamera = preload("res://src/game/orbit_camera.gd")
+const Types = preload("res://addons/pikafish/core/types.gd")
+
+
+func test_all_ninety_squares_have_a_stable_world_mapping() -> void:
+	var board = BoardView.new()
+	var seen: Dictionary = {}
+	for square in range(Types.SQUARE_NB):
+		var point: Vector3 = board.square_to_world(square)
+		assert_false(seen.has(point), "square %d overlaps another square" % square)
+		seen[point] = true
+		var expected_x := (square % 9 - 4.0) * BoardView.SPACING
+		var expected_z := (square / 9 - 4.5) * BoardView.SPACING
+		assert_almost_eq(point.x, expected_x, 0.001)
+		assert_almost_eq(point.z, expected_z, 0.001)
+	assert_eq(seen.size(), Types.SQUARE_NB)
+	board.free()
+
+
+func test_camera_is_clamped_and_flips_to_the_opposite_side() -> void:
+	var camera = OrbitCamera.new()
+	add_child(camera)
+	camera.distance = 100.0
+	camera.pitch = deg_to_rad(90.0)
+	camera.update_transform()
+	assert_eq(camera.distance, camera.max_distance)
+	assert_eq(camera.pitch, camera.max_pitch)
+	camera.reset_for_color(Types.COLOR_WHITE)
+	var white_yaw: float = camera.yaw
+	camera.flip_view()
+	assert_almost_eq(absf(wrapf(camera.yaw - white_yaw, -PI, PI)), PI, 0.001)
+	remove_child(camera)
+	camera.free()
+
+
+func test_piece_assets_resolve_for_both_sides() -> void:
+	var board = BoardView.new()
+	assert_eq(board.piece_asset(Types.W_KING), "res://assets/pieces/king0.svg")
+	assert_eq(board.piece_asset(Types.B_KING), "res://assets/pieces/king1.svg")
+	board.free()

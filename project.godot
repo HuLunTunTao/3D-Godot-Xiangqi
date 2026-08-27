@@ -13,6 +13,7 @@ config_version=5
 config/name="Pikafish"
 config/features=PackedStringArray("4.7", "Mobile")
 config/icon="res://icon.svg"
+run/main_scene="res://src/game/main.tscn"
 
 [autoload]
 
@@ -36,3 +37,5 @@ enabled=PackedStringArray("res://addons/godot_test_bridge/plugin.cfg", "res://ad
 rendering_device/driver.windows="d3d12"
 renderer/rendering_method="mobile"
 textures/vram_compression/import_etc2_astc=true
+lights_and_shadows/directional_shadow/size.mobile=4096
+lights_and_shadows/directional_shadow/soft_shadow_filter_quality.mobile=3
