@@ -46,5 +46,10 @@ func test_layout_uses_canvas_coordinates_for_landscape_and_portrait() -> void:
 		hud._relayout()
 		assert_true(Rect2(Vector2.ZERO, size).encloses(hud.action_panel.get_rect()))
 		assert_true(Rect2(Vector2.ZERO, size).encloses(hud.end_panel.get_rect()))
+	var short_size := Vector2(390, 260)
+	hud._root.size = short_size
+	hud.show_game_end("时间到", "你的单步思考时间已耗尽，本局判负。")
+	hud._relayout()
+	assert_true(Rect2(Vector2.ZERO, short_size).encloses(hud.end_panel.get_rect()))
 	remove_child(hud)
 	hud.free()

@@ -238,9 +238,14 @@ func build_end_overlay(root: Control) -> void:
 	end_panel = PanelContainer.new()
 	end_panel.add_theme_stylebox_override("panel", panel_style(Color("20272c")))
 	end_overlay.add_child(end_panel)
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	end_panel.add_child(scroll)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 12)
-	end_panel.add_child(box)
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(box)
 	var eyebrow := Label.new()
 	eyebrow.text = "对局结束"
 	eyebrow.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -404,8 +409,8 @@ func _relayout() -> void:
 	var setup_height := minf(552.0, safe.size.y - margin * 2.0)
 	setup_panel.position = safe.position + Vector2((safe.size.x - setup_width) * 0.5, (safe.size.y - setup_height) * 0.5)
 	setup_panel.size = Vector2(setup_width, setup_height)
-	var end_width := minf(360.0, safe.size.x - margin * 2.0)
-	var end_height := minf(260.0, safe.size.y - margin * 2.0)
+	var end_width := maxf(1.0, minf(360.0, safe.size.x - margin * 2.0))
+	var end_height := maxf(1.0, minf(260.0, safe.size.y - margin * 2.0))
 	end_panel.position = safe.position + Vector2((safe.size.x - end_width) * 0.5, (safe.size.y - end_height) * 0.5)
 	end_panel.size = Vector2(end_width, end_height)
 
