@@ -78,16 +78,27 @@ func animate_move(info) -> void:
 	_shadows.erase(info.from)
 	if moving_shadow != null:
 		_shadows[info.to] = moving_shadow
+	var origin := moving.position
 	var destination := square_to_world(info.to) + Vector3.UP * 0.28
-	var apex := moving.position.lerp(destination, 0.58) + Vector3.UP * 0.34
+	var shadow_origin := moving_shadow.position if moving_shadow != null else Vector3.ZERO
+	var shadow_destination := square_to_world(info.to) + Vector3.UP * 0.014
 	var tween := create_tween()
-	# A short accelerating lift followed by a decelerating landing reads as a
-	# deliberate physical move instead of a uniform slide across the board.
-	tween.tween_property(moving, "position", apex, 0.14).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tween.tween_property(moving, "position", destination, 0.18).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	# One continuous curve drives both horizontal travel and the lift.  Unlike
+	# chained tweens, it has no velocity discontinuity at the arc's apex.
+	tween.tween_method(
+		_apply_move_progress.bind(moving, moving_shadow, origin, destination, shadow_origin, shadow_destination),
+		0.0, 1.0, 0.34
+	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+
+func _apply_move_progress(
+	progress: float, moving: Node3D, moving_shadow: MeshInstance3D,
+	origin: Vector3, destination: Vector3, shadow_origin: Vector3, shadow_destination: Vector3
+) -> void:
+	var lift := sin(progress * PI) * 0.34
+	moving.position = origin.lerp(destination, progress) + Vector3.UP * lift
 	if moving_shadow != null:
-		var shadow_tween := create_tween()
-		shadow_tween.tween_property(moving_shadow, "position", square_to_world(info.to) + Vector3.UP * 0.014, 0.32).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		moving_shadow.position = shadow_origin.lerp(shadow_destination, progress)
 
 
 func add_piece(square: int, piece: int) -> void:
