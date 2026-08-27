@@ -7,8 +7,10 @@ const BOARD_WIDTH := 8.0 * SPACING
 const BOARD_DEPTH := 9.0 * SPACING
 
 var _pieces: Dictionary = {}
+var _shadows: Dictionary = {}
 var _markers: Node3D
 var _camera: Camera3D
+var _soft_shadow_material: ShaderMaterial
 
 
 func _ready() -> void:
@@ -31,8 +33,8 @@ func create_board() -> void:
 	var wood := StandardMaterial3D.new()
 	# The whole chess table uses the dominant neutral grey from board.svg.
 	wood.albedo_color = Color("3a3a3a")
-	wood.metallic = 0.08
-	wood.roughness = 0.66
+	wood.metallic = 0.02
+	wood.roughness = 0.72
 	base.material_override = wood
 	add_child(base)
 	var top := MeshInstance3D.new()
@@ -45,7 +47,8 @@ func create_board() -> void:
 	var board_material := StandardMaterial3D.new()
 	board_material.albedo_texture = load("res://assets/board.svg")
 	board_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-	board_material.roughness = 0.8
+	board_material.metallic = 0.0
+	board_material.roughness = 0.82
 	top.material_override = board_material
 	add_child(top)
 
@@ -66,11 +69,25 @@ func animate_move(info) -> void:
 	if _pieces.has(info.to):
 		_pieces[info.to].queue_free()
 		_pieces.erase(info.to)
+	if _shadows.has(info.to):
+		_shadows[info.to].queue_free()
+		_shadows.erase(info.to)
 	_pieces.erase(info.from)
 	_pieces[info.to] = moving
+	var moving_shadow: MeshInstance3D = _shadows.get(info.from)
+	_shadows.erase(info.from)
+	if moving_shadow != null:
+		_shadows[info.to] = moving_shadow
+	var destination := square_to_world(info.to) + Vector3.UP * 0.28
+	var apex := moving.position.lerp(destination, 0.58) + Vector3.UP * 0.34
 	var tween := create_tween()
-	tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tween.tween_property(moving, "position", square_to_world(info.to) + Vector3.UP * 0.28, 0.22)
+	# A short accelerating lift followed by a decelerating landing reads as a
+	# deliberate physical move instead of a uniform slide across the board.
+	tween.tween_property(moving, "position", apex, 0.14).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tween.tween_property(moving, "position", destination, 0.18).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	if moving_shadow != null:
+		var shadow_tween := create_tween()
+		shadow_tween.tween_property(moving_shadow, "position", square_to_world(info.to) + Vector3.UP * 0.014, 0.32).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
 func add_piece(square: int, piece: int) -> void:
@@ -78,6 +95,7 @@ func add_piece(square: int, piece: int) -> void:
 	holder.name = "棋子_%d" % square
 	holder.position = square_to_world(square) + Vector3.UP * 0.28
 	add_child(holder)
+	add_soft_shadow(square)
 	var body := MeshInstance3D.new()
 	var cylinder := CylinderMesh.new()
 	cylinder.top_radius = 0.46
@@ -91,8 +109,8 @@ func add_piece(square: int, piece: int) -> void:
 	var material := StandardMaterial3D.new()
 	# Keep the body in the same neutral palette as the supplied piece faces.
 	material.albedo_color = Color("747474") if Types.color_of(piece) == Types.COLOR_WHITE else Color("595959")
-	material.metallic = 0.12
-	material.roughness = 0.45
+	material.metallic = 0.06
+	material.roughness = 0.34
 	body.material_override = material
 	holder.add_child(body)
 	var face := MeshInstance3D.new()
@@ -109,6 +127,38 @@ func add_piece(square: int, piece: int) -> void:
 	face.material_override = face_material
 	holder.add_child(face)
 	_pieces[square] = holder
+
+
+func add_soft_shadow(square: int) -> void:
+	var shadow := MeshInstance3D.new()
+	shadow.name = "柔和阴影"
+	var mesh := PlaneMesh.new()
+	mesh.size = Vector2(1.16, 0.92)
+	shadow.mesh = mesh
+	shadow.position = square_to_world(square) + Vector3.UP * 0.014
+	shadow.material_override = soft_shadow_material()
+	add_child(shadow)
+	_shadows[square] = shadow
+
+
+func soft_shadow_material() -> ShaderMaterial:
+	if _soft_shadow_material != null:
+		return _soft_shadow_material
+	var shader := Shader.new()
+	shader.code = """
+shader_type spatial;
+render_mode blend_mix, unshaded, cull_disabled, depth_draw_never;
+
+void fragment() {
+	vec2 centered_uv = UV - vec2(0.5);
+	float radial_distance = length(centered_uv * vec2(1.0, 1.25)) * 2.0;
+	ALBEDO = vec3(0.0);
+	ALPHA = 0.24 * (1.0 - smoothstep(0.12, 1.0, radial_distance));
+}
+"""
+	_soft_shadow_material = ShaderMaterial.new()
+	_soft_shadow_material.shader = shader
+	return _soft_shadow_material
 
 
 func update_face_rotation() -> void:
@@ -180,3 +230,6 @@ func clear_pieces() -> void:
 	for piece in _pieces.values():
 		piece.queue_free()
 	_pieces.clear()
+	for shadow in _shadows.values():
+		shadow.queue_free()
+	_shadows.clear()

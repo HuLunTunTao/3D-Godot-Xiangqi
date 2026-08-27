@@ -71,16 +71,21 @@ func create_world() -> void:
 	env.background_mode = Environment.BG_COLOR
 	env.background_color = Color("182029")
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color("d9c4a4")
-	env.ambient_light_energy = 0.55
+	# Neutral lighting preserves the intended grey palette without flattening
+	# the physical response of the board and chessmen.
+	env.ambient_light_color = Color.WHITE
+	env.ambient_light_energy = 0.32
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	environment.environment = env
 	add_child(environment)
 	var key := DirectionalLight3D.new()
 	key.rotation_degrees = Vector3(-58, -28, 0)
-	key.light_color = Color("ffd9ac")
-	key.light_energy = 1.25
-	key.shadow_enabled = true
+	key.light_color = Color.WHITE
+	key.light_energy = 1.05
+	# Board and chessmen preserve their source greys via unshaded materials;
+	# the board view supplies its own soft contact shadows without shadow-map
+	# aliasing or colour shifts.
+	key.shadow_enabled = false
 	key.directional_shadow_max_distance = 24.0
 	key.directional_shadow_fade_start = 0.8
 	key.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
@@ -88,8 +93,8 @@ func create_world() -> void:
 	add_child(key)
 	var fill := OmniLight3D.new()
 	fill.position = Vector3(-5, 7, 4)
-	fill.light_color = Color("8fc8ff")
-	fill.light_energy = 3.0
+	fill.light_color = Color.WHITE
+	fill.light_energy = 1.6
 	fill.omni_range = 18.0
 	add_child(fill)
 

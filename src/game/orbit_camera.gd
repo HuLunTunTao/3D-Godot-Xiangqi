@@ -15,6 +15,7 @@ extends Camera3D
 const ORBIT_SPEED := 0.012
 const PAN_SPEED := 0.012
 const TOUCH_SLOP := 14.0
+const CAMERA_SMOOTH_SPEED := 11.0
 ## Distance-change threshold is relative to the short edge, not device pixels.
 ## On the deployed 1640×2360 iPad this is about 41 physical pixels.
 const TWO_FINGER_DISTANCE_THRESHOLD_RATIO := 0.025
@@ -27,22 +28,46 @@ var _two_finger_mode := ""
 var _two_finger_start_distance := 0.0
 var _last_two_finger_distance := 0.0
 var _last_two_finger_center := Vector2.ZERO
+var _smoothed_target := Vector3.ZERO
+var _smoothed_distance := 14.0
+var _smoothed_yaw := 0.0
+var _smoothed_pitch := deg_to_rad(52.0)
+var _transform_ready := false
 
 
 func _ready() -> void:
-	update_transform()
+	_smoothed_target = target
+	_smoothed_distance = distance
+	_smoothed_yaw = yaw
+	_smoothed_pitch = pitch
+	_transform_ready = true
+	apply_smoothed_transform()
+
+
+func _process(delta: float) -> void:
+	if not _transform_ready:
+		return
+	var weight := 1.0 - exp(-CAMERA_SMOOTH_SPEED * delta)
+	_smoothed_target = _smoothed_target.lerp(target, weight)
+	_smoothed_distance = lerpf(_smoothed_distance, distance, weight)
+	_smoothed_yaw = lerp_angle(_smoothed_yaw, yaw, weight)
+	_smoothed_pitch = lerpf(_smoothed_pitch, pitch, weight)
+	apply_smoothed_transform()
 
 
 func update_transform() -> void:
 	pitch = clampf(pitch, min_pitch, max_pitch)
 	distance = clampf(distance, min_distance, max_distance)
+
+
+func apply_smoothed_transform() -> void:
 	var offset := Vector3(
-		sin(yaw) * cos(pitch),
-		sin(pitch),
-		cos(yaw) * cos(pitch)
-	) * distance
-	global_position = target + offset
-	look_at(target, Vector3.UP)
+		sin(_smoothed_yaw) * cos(_smoothed_pitch),
+		sin(_smoothed_pitch),
+		cos(_smoothed_yaw) * cos(_smoothed_pitch)
+	) * _smoothed_distance
+	global_position = _smoothed_target + offset
+	look_at(_smoothed_target, Vector3.UP)
 
 
 func reset_for_color(color: int) -> void:
@@ -61,7 +86,7 @@ func flip_view() -> void:
 
 
 func projected_yaw() -> float:
-	var delta := global_position - target
+	var delta := global_position - (_smoothed_target if _transform_ready else target)
 	return atan2(delta.x, delta.z)
 
 
