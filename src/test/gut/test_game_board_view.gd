@@ -45,3 +45,14 @@ func test_piece_assets_resolve_for_both_sides() -> void:
 	assert_eq(board.piece_asset(Types.W_KING), "res://assets/pieces/king0.svg")
 	assert_eq(board.piece_asset(Types.B_KING), "res://assets/pieces/king1.svg")
 	board.free()
+
+
+func test_longer_piece_moves_have_a_higher_bounded_arc() -> void:
+	var board = BoardView.new()
+	var one_step := board.move_arc_height(Vector3.ZERO, Vector3(BoardView.SPACING, 0.0, 0.0))
+	var knight_step := board.move_arc_height(Vector3.ZERO, Vector3(BoardView.SPACING, 0.0, BoardView.SPACING * 2.0))
+	var long_step := board.move_arc_height(Vector3.ZERO, Vector3(BoardView.SPACING * 8.0, 0.0, 0.0))
+	assert_gt(knight_step, one_step)
+	assert_gt(long_step, knight_step)
+	assert_eq(long_step, 0.55)
+	board.free()

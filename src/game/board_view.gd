@@ -80,25 +80,34 @@ func animate_move(info) -> void:
 		_shadows[info.to] = moving_shadow
 	var origin := moving.position
 	var destination := square_to_world(info.to) + Vector3.UP * 0.28
+	var arc_height := move_arc_height(origin, destination)
 	var shadow_origin := moving_shadow.position if moving_shadow != null else Vector3.ZERO
 	var shadow_destination := square_to_world(info.to) + Vector3.UP * 0.014
 	var tween := create_tween()
 	# One continuous curve drives both horizontal travel and the lift.  Unlike
 	# chained tweens, it has no velocity discontinuity at the arc's apex.
 	tween.tween_method(
-		_apply_move_progress.bind(moving, moving_shadow, origin, destination, shadow_origin, shadow_destination),
+		_apply_move_progress.bind(moving, moving_shadow, origin, destination, shadow_origin, shadow_destination, arc_height),
 		0.0, 1.0, 0.34
 	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
 func _apply_move_progress(
 	progress: float, moving: Node3D, moving_shadow: MeshInstance3D,
-	origin: Vector3, destination: Vector3, shadow_origin: Vector3, shadow_destination: Vector3
+	origin: Vector3, destination: Vector3, shadow_origin: Vector3, shadow_destination: Vector3, arc_height: float
 ) -> void:
-	var lift := sin(progress * PI) * 0.34
+	var lift := sin(progress * PI) * arc_height
 	moving.position = origin.lerp(destination, progress) + Vector3.UP * lift
 	if moving_shadow != null:
 		moving_shadow.position = shadow_origin.lerp(shadow_destination, progress)
+
+
+func move_arc_height(origin: Vector3, destination: Vector3) -> float:
+	# Keep one-step moves close to the board, then raise longer transfers in a
+	# bounded linear progression.  Measure only on the board plane so normal
+	# piece height never affects the animation.
+	var horizontal_distance := Vector2(destination.x - origin.x, destination.z - origin.z).length()
+	return clampf(0.14 + horizontal_distance * 0.055, 0.20, 0.55)
 
 
 func add_piece(square: int, piece: int) -> void:
