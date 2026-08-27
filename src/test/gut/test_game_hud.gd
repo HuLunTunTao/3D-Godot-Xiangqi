@@ -26,6 +26,12 @@ func test_history_is_collapsed_until_requested_and_renders_bilingual_record() ->
 	assert_true(hud.end_overlay.visible)
 	assert_eq(hud.end_title_label.text, "时间到")
 	assert_eq(hud.end_detail_label.text, "本局判负")
+	hud.show_loading("正在准备", "正在下载棋力网络…")
+	assert_true(hud.load_overlay.visible)
+	hud.set_loading_progress(10, 100, "正在下载棋力网络")
+	assert_eq(hud.load_bar.value, 10.0)
+	hud.hide_loading()
+	assert_false(hud.load_overlay.visible)
 	remove_child(hud)
 	hud.free()
 

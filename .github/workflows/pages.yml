@@ -1,0 +1,112 @@
+name: GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.7.1-stable
+  GODOT_TEMPLATE_DIR: 4.7.1.stable
+  NNUE_URL: https://github.com/official-pikafish/Networks/releases/download/master-net/pikafish.nnue
+
+jobs:
+  build:
+    name: Export Web and pack NNUE
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pack tools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends zstd python3
+
+      - name: Cache Godot editor and templates
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}-web-templates
+
+      - name: Download Godot ${{ env.GODOT_VERSION }}
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p ~/godot
+          curl -sL "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip" -o /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d ~/godot
+          mv ~/godot/Godot_v${GODOT_VERSION}_linux.x86_64 ~/godot/godot
+          chmod +x ~/godot/godot
+          curl -sL "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_export_templates.tpz" -o /tmp/templates.tpz
+          mkdir -p "$HOME/.local/share/godot/export_templates/${GODOT_TEMPLATE_DIR}"
+          unzip -q /tmp/templates.tpz -d /tmp/templates
+          mv /tmp/templates/templates/* "$HOME/.local/share/godot/export_templates/${GODOT_TEMPLATE_DIR}/"
+
+      - name: Fetch and parse master-net
+        run: |
+          set -euo pipefail
+          curl -fL --retry 3 -o /tmp/pikafish.nnue "$NNUE_URL"
+          python3 tools/parse_nnue.py /tmp/pikafish.nnue
+          python3 tools/gen_tables.py
+          test -f data/manifest.json
+          test -s data/ft_threatW.bin
+
+      - name: Strip editor-only autoload for export
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("project.godot")
+          text = path.read_text()
+          text = text.replace('GodotTestBridge="*uid://bqbc8ww61r4g2"\n', "")
+          path.write_text(text)
+          PY
+
+      - name: Import and export Web
+        run: |
+          set -euo pipefail
+          mkdir -p build/web
+          ~/godot/godot --headless --path . --import || true
+          ~/godot/godot --headless --path . --export-release "Web" build/web/index.html
+          test -s build/web/index.html
+          test -s "$(ls build/web/*.wasm | head -1)"
+          test -s "$(ls build/web/*.pck | head -1)"
+
+      - name: Pack NNUE sidecar
+        run: |
+          python3 tools/pack_web_nnue.py --data data --zip build/web/nnue-data.zip --meta build/web/nnue-pack.json
+          python3 - <<'PY'
+          from pathlib import Path
+          pck = next(Path("build/web").glob("*.pck"))
+          z = Path("build/web/nnue-data.zip")
+          print(f"pck={pck.stat().st_size} zip={z.stat().st_size}")
+          if pck.stat().st_size > 40 * 1024 * 1024:
+              raise SystemExit("PCK looks like it still contains NNUE weights")
+          if z.stat().st_size < 20 * 1024 * 1024:
+              raise SystemExit("nnue-data.zip is too small")
+          PY
+          touch build/web/.nojekyll
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy:
+    name: Deploy Pages
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

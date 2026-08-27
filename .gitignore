@@ -5,6 +5,7 @@
 # regenerable weight/tables/reference data (tools/*.py)
 data/
 __pycache__/
+/build/
 
 # AGENTS
 AGENTS.md

@@ -7,6 +7,7 @@ const BoardViewScript = preload("res://src/game/board_view.gd")
 const CameraScript = preload("res://src/game/orbit_camera.gd")
 const HudScript = preload("res://src/game/game_hud.gd")
 const AudioScript = preload("res://src/game/game_audio.gd")
+const LoaderScript = preload("res://src/game/nnue_web_loader.gd")
 const Types = preload("res://addons/pikafish/core/types.gd")
 
 var controller: XiangqiGameController
@@ -20,12 +21,14 @@ var selected_targets := PackedInt32Array()
 
 func _ready() -> void:
 	# High-contrast round chessmen benefit from mobile hardware AA.
-	get_viewport().msaa_3d = Viewport.MSAA_4X
-	get_viewport().screen_space_aa = Viewport.SCREEN_SPACE_AA_FXAA
+	if not OS.has_feature("web"):
+		get_viewport().msaa_3d = Viewport.MSAA_4X
+		get_viewport().screen_space_aa = Viewport.SCREEN_SPACE_AA_FXAA
 	create_world()
 	create_game_nodes()
 	create_hud()
-	call_deferred("_show_initial_position")
+	if await _boot_game():
+		_show_initial_position()
 
 
 func _process(_delta: float) -> void:
@@ -64,6 +67,25 @@ func create_hud() -> void:
 	controller.game_state_changed.connect(hud.set_game_state)
 	controller.game_ended.connect(hud.show_game_end)
 	controller.board_changed.connect(_on_audio_board_changed)
+
+
+func _boot_game() -> bool:
+	var network_dir := ""
+	if OS.has_feature("web"):
+		hud.show_loading("正在准备", "正在下载棋力网络…")
+		var loader: NnueWebLoader = LoaderScript.new()
+		add_child(loader)
+		loader.progress_changed.connect(hud.set_loading_progress)
+		var err := await loader.ensure_ready()
+		if err != OK:
+			hud.show_loading("无法开始", loader.last_error)
+			return false
+		network_dir = loader.network_dir
+	if controller.boot_engine(network_dir) != OK:
+		hud.show_loading("无法开始", "引擎初始化失败")
+		return false
+	hud.hide_loading()
+	return true
 
 
 func _show_initial_position() -> void:

@@ -18,7 +18,7 @@ var _port: int = -1
 
 
 func _ready() -> void:
-	if not OS.is_debug_build():
+	if not OS.is_debug_build() or OS.has_feature("web"):
 		set_process(false)
 		return
 	_handler = COMMAND_HANDLER.new()

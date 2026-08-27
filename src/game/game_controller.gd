@@ -2,6 +2,7 @@ class_name XiangqiGameController
 extends Node
 
 const EngineScript = preload("res://addons/pikafish/pikafish.gd")
+const ConfigScript = preload("res://addons/pikafish/config.gd")
 const Types = preload("res://addons/pikafish/core/types.gd")
 const MoveNotation = preload("res://src/game/move_notation.gd")
 const SETTINGS_PATH := "user://xiangqi_settings.cfg"
@@ -29,10 +30,16 @@ var _move_records: Array[Dictionary] = []
 
 func _ready() -> void:
 	load_settings()
-	var err := engine.initialize()
+
+
+func boot_engine(network_dir: String = "") -> Error:
+	var cfg := ConfigScript.new()
+	if not network_dir.is_empty():
+		cfg.network_dir = network_dir
+	var err := engine.initialize(cfg)
 	if err != OK:
 		status_changed.emit("引擎初始化失败：%s" % error_string(err), "error")
-		return
+		return err
 	engine.position_changed.connect(_on_position_changed)
 	engine.best_move_found.connect(_on_best_move_found)
 	engine.search_info.connect(func(info):
@@ -42,6 +49,7 @@ func _ready() -> void:
 	)
 	status_changed.emit("请选择设置后开始对局", "setup")
 	_emit_game_state()
+	return OK
 
 
 func _exit_tree() -> void:
@@ -65,6 +73,8 @@ func save_settings() -> void:
 
 
 func start_game(color_choice: String, time_seconds: float, think_ms: int, depth: int) -> void:
+	if not bool(engine.backend_info().get("initialized", false)):
+		return
 	engine.stop_search()
 	human_color = randi_range(0, 1) if color_choice == "random" else (Types.COLOR_WHITE if color_choice == "red" else Types.COLOR_BLACK)
 	human_time_limit = clampf(time_seconds, 10.0, 600.0)
@@ -159,8 +169,17 @@ func _after_position_change() -> void:
 		status_changed.emit("AI 正在思考…", "ai")
 		_search_revision = engine.position_revision()
 		_last_search_depth = 0
-		engine.start_search({"movetime_ms": ai_time_ms, "depth": ai_depth})
-	_emit_game_state()
+		_start_ai_search()
+		_emit_game_state()
+
+
+func _start_ai_search() -> void:
+	var limits := {"movetime_ms": ai_time_ms, "depth": ai_depth}
+	if OS.has_feature("web"):
+		limits["sync"] = true
+		await get_tree().process_frame
+		await get_tree().process_frame
+	engine.start_search(limits)
 
 
 func _on_best_move_found(result) -> void:

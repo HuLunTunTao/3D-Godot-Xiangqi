@@ -24,6 +24,11 @@ var end_overlay: ColorRect
 var end_panel: PanelContainer
 var end_title_label: Label
 var end_detail_label: Label
+var load_overlay: ColorRect
+var load_panel: PanelContainer
+var load_title_label: Label
+var load_detail_label: Label
+var load_bar: ProgressBar
 var status_label: Label
 var player_label: Label
 var clock_label: Label
@@ -53,6 +58,7 @@ func build(default_human_time: float, default_ai_time_ms: int, default_ai_depth:
 	setup_panel = build_setup_panel(default_human_time, default_ai_time_ms, default_ai_depth)
 	_root.add_child(setup_panel)
 	build_end_overlay(_root)
+	build_load_overlay(_root)
 	_root.resized.connect(_relayout)
 	set_gameplay_visible(false)
 	call_deferred("_relayout")
@@ -279,6 +285,62 @@ func build_end_overlay(root: Control) -> void:
 	box.add_child(restart)
 
 
+func build_load_overlay(root: Control) -> void:
+	load_overlay = ColorRect.new()
+	load_overlay.color = Color("10161bb8")
+	load_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	load_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	load_overlay.visible = false
+	root.add_child(load_overlay)
+	load_panel = PanelContainer.new()
+	load_panel.add_theme_stylebox_override("panel", panel_style(Color("20272c")))
+	load_overlay.add_child(load_panel)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 12)
+	load_panel.add_child(box)
+	load_title_label = Label.new()
+	load_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	load_title_label.add_theme_font_size_override("font_size", 24)
+	load_title_label.text = "正在准备"
+	box.add_child(load_title_label)
+	load_detail_label = Label.new()
+	load_detail_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	load_detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	load_detail_label.modulate = MUTED
+	box.add_child(load_detail_label)
+	load_bar = ProgressBar.new()
+	load_bar.min_value = 0
+	load_bar.max_value = 1
+	load_bar.show_percentage = false
+	load_bar.custom_minimum_size.y = 12
+	box.add_child(load_bar)
+
+
+func show_loading(title: String, detail: String = "") -> void:
+	load_title_label.text = title
+	load_detail_label.text = detail
+	load_bar.value = 0
+	load_overlay.visible = true
+	call_deferred("_relayout")
+
+
+func set_loading_progress(loaded: int, total: int, status: String) -> void:
+	load_detail_label.text = status
+	if total > 0:
+		load_bar.max_value = total
+		load_bar.value = loaded
+	else:
+		load_bar.max_value = 1
+		load_bar.value = 0
+	if not load_overlay.visible:
+		load_overlay.visible = true
+		call_deferred("_relayout")
+
+
+func hide_loading() -> void:
+	load_overlay.visible = false
+
+
 func build_setup_panel(default_human_time: float, default_ai_time_ms: int, default_ai_depth: int) -> PanelContainer:
 	var panel := PanelContainer.new()
 	panel.add_theme_stylebox_override("panel", panel_style(Color("20272c")))
@@ -413,6 +475,12 @@ func _relayout() -> void:
 	var end_height := maxf(1.0, minf(260.0, safe.size.y - margin * 2.0))
 	end_panel.position = safe.position + Vector2((safe.size.x - end_width) * 0.5, (safe.size.y - end_height) * 0.5)
 	end_panel.size = Vector2(end_width, end_height)
+	if load_panel == null:
+		return
+	var load_width := maxf(1.0, minf(360.0, safe.size.x - margin * 2.0))
+	var load_height := maxf(1.0, minf(200.0, safe.size.y - margin * 2.0))
+	load_panel.position = safe.position + Vector2((safe.size.x - load_width) * 0.5, (safe.size.y - load_height) * 0.5)
+	load_panel.size = Vector2(load_width, load_height)
 
 
 func panel_style(color := Color("20272c")) -> StyleBoxFlat:

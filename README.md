@@ -19,6 +19,16 @@
 
 需要 **Godot 4.7.1**（Mobile renderer）。把下面命令里的 `godot` 换成你的可执行文件即可。
 
+## 浏览器试玩
+
+GitHub Pages 托管单线程 Web 导出：游戏本体不含 NNUE 权重，打开页面后从同域再下载 `nnue-data.zip`（约 70 MB，缓存到浏览器 `user://`）。
+
+推送到 `main` 或手动跑 `Pages` workflow 后，地址为：
+
+**https://huluntuntao.github.io/3D-Godot-Xiangqi/**
+
+仓库需在 Settings → Pages → Source 选 **GitHub Actions**。CI 每次从 [Pikafish Networks `master-net`](https://github.com/official-pikafish/Networks/releases/tag/master-net) 拉取 `pikafish.nnue`，解析后与 wasm 分开放。
+
 ## 下棋
 
 主场景已经是对局界面（`res://src/game/main.tscn`）。用编辑器打开本仓库，按运行。
