@@ -16,6 +16,8 @@ var status_label: Label
 var clock_label: Label
 var depth_label: Label
 var moves_label: RichTextLabel
+var move_panel: PanelContainer
+var move_show_button: Button
 var setup_panel: PanelContainer
 var end_dialog: AcceptDialog
 var color_option: OptionButton
@@ -128,7 +130,7 @@ func create_interface() -> void:
 	add_button(actions, "复位镜头", func(): camera_rig.reset_for_color(controller.human_color))
 	add_button(actions, "认输", func(): controller.resign())
 
-	var move_panel := PanelContainer.new()
+	move_panel = PanelContainer.new()
 	move_panel.anchor_left = 1.0
 	move_panel.anchor_right = 1.0
 	move_panel.offset_left = -260
@@ -139,15 +141,34 @@ func create_interface() -> void:
 	root.add_child(move_panel)
 	var move_box := VBoxContainer.new()
 	move_panel.add_child(move_box)
+	var move_header := HBoxContainer.new()
+	move_box.add_child(move_header)
 	var move_title := Label.new()
 	move_title.text = "走棋记录"
 	move_title.add_theme_font_size_override("font_size", 18)
-	move_box.add_child(move_title)
+	move_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	move_header.add_child(move_title)
+	var move_hide_button := Button.new()
+	move_hide_button.text = "收起"
+	move_hide_button.custom_minimum_size = Vector2(60, 36)
+	move_hide_button.pressed.connect(func(): set_move_panel_visible(false))
+	move_header.add_child(move_hide_button)
 	moves_label = RichTextLabel.new()
 	moves_label.bbcode_enabled = true
 	moves_label.fit_content = false
 	moves_label.custom_minimum_size = Vector2(220, 275)
 	move_box.add_child(moves_label)
+	move_show_button = Button.new()
+	move_show_button.text = "走棋记录"
+	move_show_button.anchor_left = 1.0
+	move_show_button.anchor_right = 1.0
+	move_show_button.offset_left = -124
+	move_show_button.offset_top = 16
+	move_show_button.offset_right = -18
+	move_show_button.offset_bottom = 60
+	move_show_button.pressed.connect(func(): set_move_panel_visible(true))
+	move_show_button.visible = false
+	root.add_child(move_show_button)
 
 	setup_panel = build_setup_panel()
 	root.add_child(setup_panel)
@@ -307,13 +328,19 @@ func _on_game_ended(title: String, detail: String) -> void:
 	end_dialog.popup_centered()
 
 
+func set_move_panel_visible(visible: bool) -> void:
+	move_panel.visible = visible
+	move_show_button.visible = not visible
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	var handled := camera_rig.handle_event(event)
 	if handled:
 		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-		select_at(event.position)
-	if event is InputEventScreenTouch and not event.pressed and not camera_rig.was_touch_drag():
+		# Keep the iOS touch-to-mouse path enabled: Control buttons use it.  The
+		# 3D board also accepts this one pointer stream, so a tap is committed
+		# exactly once.  Native ScreenTouch below is reserved for camera gestures.
 		select_at(event.position)
 
 
@@ -323,6 +350,11 @@ func select_at(screen_pos: Vector2) -> void:
 	var square := board.pick_square(camera_rig, screen_pos)
 	if square == Types.SQ_NONE:
 		selected_square = Types.SQ_NONE
+		board.clear_selection()
+		return
+	if square == selected_square:
+		selected_square = Types.SQ_NONE
+		selected_targets = PackedInt32Array()
 		board.clear_selection()
 		return
 	if selected_square != Types.SQ_NONE and square in selected_targets:

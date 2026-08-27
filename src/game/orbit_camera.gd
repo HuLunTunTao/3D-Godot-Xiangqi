@@ -46,8 +46,9 @@ func update_transform() -> void:
 
 
 func reset_for_color(color: int) -> void:
-	# White/red begins at the near side; black uses the symmetric view.
-	yaw = 0.0 if color == 0 else PI
+	# In the engine's board coordinates red/white starts at negative Z, while
+	# black starts at positive Z.  Put the camera on the player's own side.
+	yaw = PI if color == 0 else 0.0
 	pitch = deg_to_rad(52.0)
 	distance = 14.0
 	target = Vector3.ZERO

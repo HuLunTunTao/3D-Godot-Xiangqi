@@ -30,6 +30,10 @@ func test_camera_is_clamped_and_flips_to_the_opposite_side() -> void:
 	assert_eq(camera.pitch, camera.max_pitch)
 	camera.reset_for_color(Types.COLOR_WHITE)
 	var white_yaw: float = camera.yaw
+	assert_almost_eq(absf(wrapf(white_yaw - PI, -PI, PI)), 0.0, 0.001)
+	camera.reset_for_color(Types.COLOR_BLACK)
+	assert_almost_eq(absf(wrapf(camera.yaw, -PI, PI)), 0.0, 0.001)
+	camera.reset_for_color(Types.COLOR_WHITE)
 	camera.flip_view()
 	assert_almost_eq(absf(wrapf(camera.yaw - white_yaw, -PI, PI)), PI, 0.001)
 	remove_child(camera)
