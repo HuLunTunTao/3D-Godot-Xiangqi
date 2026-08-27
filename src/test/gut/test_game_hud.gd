@@ -22,6 +22,10 @@ func test_history_is_collapsed_until_requested_and_renders_bilingual_record() ->
 	assert_true(hud.move_panel.visible)
 	hud.set_action_menu_visible(true)
 	assert_true(hud.action_panel.visible)
+	hud.show_game_end("时间到", "本局判负")
+	assert_true(hud.end_overlay.visible)
+	assert_eq(hud.end_title_label.text, "时间到")
+	assert_eq(hud.end_detail_label.text, "本局判负")
 	remove_child(hud)
 	hud.free()
 
@@ -41,5 +45,6 @@ func test_layout_uses_canvas_coordinates_for_landscape_and_portrait() -> void:
 		hud.set_action_menu_visible(true)
 		hud._relayout()
 		assert_true(Rect2(Vector2.ZERO, size).encloses(hud.action_panel.get_rect()))
+		assert_true(Rect2(Vector2.ZERO, size).encloses(hud.end_panel.get_rect()))
 	remove_child(hud)
 	hud.free()

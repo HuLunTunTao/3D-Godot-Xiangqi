@@ -20,7 +20,10 @@ var action_show_button: Button
 var move_panel: PanelContainer
 var move_show_button: Button
 var setup_panel: PanelContainer
-var end_dialog: AcceptDialog
+var end_overlay: ColorRect
+var end_panel: PanelContainer
+var end_title_label: Label
+var end_detail_label: Label
 var status_label: Label
 var player_label: Label
 var clock_label: Label
@@ -49,11 +52,7 @@ func build(default_human_time: float, default_ai_time_ms: int, default_ai_depth:
 	build_move_history(_root)
 	setup_panel = build_setup_panel(default_human_time, default_ai_time_ms, default_ai_depth)
 	_root.add_child(setup_panel)
-	end_dialog = AcceptDialog.new()
-	end_dialog.title = "对局结束"
-	end_dialog.ok_button_text = "再来一局"
-	end_dialog.confirmed.connect(show_setup)
-	_root.add_child(end_dialog)
+	build_end_overlay(_root)
 	_root.resized.connect(_relayout)
 	set_gameplay_visible(false)
 	call_deferred("_relayout")
@@ -103,9 +102,12 @@ func set_moves(history: Array) -> void:
 
 
 func show_game_end(title: String, detail: String) -> void:
-	end_dialog.title = title
-	end_dialog.dialog_text = detail
-	end_dialog.popup_centered()
+	set_move_panel_visible(false)
+	set_action_menu_visible(false)
+	end_title_label.text = title
+	end_detail_label.text = detail
+	end_overlay.visible = true
+	call_deferred("_relayout")
 
 
 func show_setup() -> void:
@@ -224,6 +226,52 @@ func build_move_history(root: Control) -> void:
 	root.add_child(move_show_button)
 	_gameplay_nodes.append(move_show_button)
 	set_move_panel_visible(false)
+
+
+func build_end_overlay(root: Control) -> void:
+	end_overlay = ColorRect.new()
+	end_overlay.color = Color("10161bb8")
+	end_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	end_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	end_overlay.visible = false
+	root.add_child(end_overlay)
+	end_panel = PanelContainer.new()
+	end_panel.add_theme_stylebox_override("panel", panel_style(Color("20272c")))
+	end_overlay.add_child(end_panel)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 12)
+	end_panel.add_child(box)
+	var eyebrow := Label.new()
+	eyebrow.text = "对局结束"
+	eyebrow.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	eyebrow.modulate = MUTED
+	eyebrow.add_theme_font_size_override("font_size", 15)
+	box.add_child(eyebrow)
+	end_title_label = Label.new()
+	end_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	end_title_label.add_theme_font_size_override("font_size", 28)
+	box.add_child(end_title_label)
+	end_detail_label = Label.new()
+	end_detail_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	end_detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	end_detail_label.modulate = MUTED
+	end_detail_label.add_theme_font_size_override("font_size", 18)
+	box.add_child(end_detail_label)
+	var divider := separator()
+	box.add_child(divider)
+	var restart := Button.new()
+	restart.text = "新对局"
+	restart.custom_minimum_size.y = 48
+	restart.add_theme_font_size_override("font_size", 19)
+	restart.add_theme_stylebox_override("normal", button_style(Color("d3d9dc")))
+	restart.add_theme_stylebox_override("hover", button_style(Color("e3e8ea")))
+	restart.add_theme_color_override("font_color", Color("172026"))
+	restart.add_theme_color_override("font_hover_color", Color("172026"))
+	restart.pressed.connect(func():
+		end_overlay.visible = false
+		show_setup()
+	)
+	box.add_child(restart)
 
 
 func build_setup_panel(default_human_time: float, default_ai_time_ms: int, default_ai_depth: int) -> PanelContainer:
@@ -356,6 +404,10 @@ func _relayout() -> void:
 	var setup_height := minf(552.0, safe.size.y - margin * 2.0)
 	setup_panel.position = safe.position + Vector2((safe.size.x - setup_width) * 0.5, (safe.size.y - setup_height) * 0.5)
 	setup_panel.size = Vector2(setup_width, setup_height)
+	var end_width := minf(360.0, safe.size.x - margin * 2.0)
+	var end_height := minf(260.0, safe.size.y - margin * 2.0)
+	end_panel.position = safe.position + Vector2((safe.size.x - end_width) * 0.5, (safe.size.y - end_height) * 0.5)
+	end_panel.size = Vector2(end_width, end_height)
 
 
 func panel_style(color := Color("20272c")) -> StyleBoxFlat:
