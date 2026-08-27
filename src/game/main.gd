@@ -54,9 +54,10 @@ func create_hud() -> void:
 	# The controller may emit status as soon as it receives a move, so connect
 	# only after the HUD instance and its labels have been built.
 	controller.board_changed.connect(_on_board_changed)
-	controller.status_changed.connect(func(text, _state): hud.set_status(text))
+	controller.status_changed.connect(hud.set_status)
 	controller.clock_changed.connect(hud.set_clock)
 	controller.search_progress.connect(hud.set_search_depth)
+	controller.game_state_changed.connect(hud.set_game_state)
 	controller.game_ended.connect(hud.show_game_end)
 
 
@@ -108,7 +109,7 @@ func _start_game(color_choice: String, human_seconds: float, ai_think_ms: int, a
 func _on_board_changed(view, move_info) -> void:
 	board.show_position(view, move_info)
 	clear_selection()
-	hud.set_moves(controller.engine.move_history())
+	hud.set_moves(controller.move_records())
 
 
 func _unhandled_input(event: InputEvent) -> void:

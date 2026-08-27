@@ -3,6 +3,7 @@ extends Node
 
 const EngineScript = preload("res://addons/pikafish/pikafish.gd")
 const Types = preload("res://addons/pikafish/core/types.gd")
+const MoveNotation = preload("res://src/game/move_notation.gd")
 const SETTINGS_PATH := "user://xiangqi_settings.cfg"
 
 signal board_changed(view, move_info)
@@ -10,6 +11,7 @@ signal status_changed(text: String, state: String)
 signal clock_changed(seconds_left: float)
 signal search_progress(depth: int)
 signal game_ended(title: String, detail: String)
+signal game_state_changed(info: Dictionary)
 
 enum State { SETUP, HUMAN_TURN, AI_THINKING, FINISHED }
 
@@ -21,6 +23,8 @@ var human_time_left := 60.0
 var ai_time_ms := 1500
 var ai_depth := 12
 var _search_revision := -1
+var _last_search_depth := 0
+var _move_records: Array[Dictionary] = []
 
 
 func _ready() -> void:
@@ -31,8 +35,13 @@ func _ready() -> void:
 		return
 	engine.position_changed.connect(_on_position_changed)
 	engine.best_move_found.connect(_on_best_move_found)
-	engine.search_info.connect(func(info): search_progress.emit(info.depth))
+	engine.search_info.connect(func(info):
+		_last_search_depth = info.depth
+		search_progress.emit(info.depth)
+		_emit_game_state()
+	)
 	status_changed.emit("请选择设置后开始对局", "setup")
+	_emit_game_state()
 
 
 func _exit_tree() -> void:
@@ -63,6 +72,8 @@ func start_game(color_choice: String, time_seconds: float, think_ms: int, depth:
 	ai_depth = clampi(depth, 1, 30)
 	save_settings()
 	human_time_left = human_time_limit
+	_last_search_depth = 0
+	_move_records.clear()
 	engine.new_game()
 	_after_position_change()
 
@@ -72,7 +83,7 @@ func request_move(from: int, to: int) -> bool:
 		return false
 	for move in engine.legal_moves_from(from):
 		if engine.move_to_uci(move).ends_with(_square_name(to)):
-			if engine.push_move(move) == OK:
+			if _push_recorded_move(move):
 				_after_position_change()
 				return true
 	return false
@@ -83,8 +94,10 @@ func undo_full_turn() -> void:
 		return
 	engine.stop_search()
 	if engine.can_undo():
+		_remove_last_record()
 		engine.pop_move()
 	if engine.can_undo():
+		_remove_last_record()
 		engine.pop_move()
 	human_time_left = human_time_limit
 	_after_position_change()
@@ -97,6 +110,7 @@ func resign() -> void:
 	state = State.FINISHED
 	game_ended.emit("对局结束", "你已认输")
 	status_changed.emit("你已认输", "finished")
+	_emit_game_state()
 
 
 func legal_targets(square: int) -> PackedInt32Array:
@@ -122,6 +136,7 @@ func _process(delta: float) -> void:
 		state = State.FINISHED
 		game_ended.emit("时间到", "你的单步思考时间已耗尽，本局判负。")
 		status_changed.emit("超时判负", "finished")
+		_emit_game_state()
 
 
 func _after_position_change() -> void:
@@ -132,6 +147,7 @@ func _after_position_change() -> void:
 		var detail := "和棋" if winner.is_empty() else ("红方胜" if winner == "white" else "黑方胜")
 		game_ended.emit("对局结束", detail)
 		status_changed.emit(detail, "finished")
+		_emit_game_state()
 		return
 	var view = engine.get_position_view()
 	if view.side_to_move == human_color:
@@ -142,7 +158,9 @@ func _after_position_change() -> void:
 		state = State.AI_THINKING
 		status_changed.emit("AI 正在思考…", "ai")
 		_search_revision = engine.position_revision()
+		_last_search_depth = 0
 		engine.start_search({"movetime_ms": ai_time_ms, "depth": ai_depth})
+	_emit_game_state()
 
 
 func _on_best_move_found(result) -> void:
@@ -151,12 +169,51 @@ func _on_best_move_found(result) -> void:
 	if result.bestmove == Types.MOVE_NONE:
 		_after_position_change()
 		return
-	if engine.push_move(result.bestmove) == OK:
+	if _push_recorded_move(result.bestmove):
 		_after_position_change()
 
 
 func _on_position_changed(view, move_info) -> void:
 	board_changed.emit(view, move_info)
+
+
+func move_records() -> Array[Dictionary]:
+	return _move_records.duplicate(true)
+
+
+func _push_recorded_move(move: int) -> bool:
+	var before = engine.get_position_view()
+	var record := {
+		"turn": int(_move_records.size() / 2) + 1,
+		"side": before.side_to_move,
+		"uci": engine.move_to_uci(move),
+		"notation": MoveNotation.format(before, move),
+		"before_fen": before.fen,
+		"capture": before.piece_at(Types.to_sq(move)) != Types.NO_PIECE,
+	}
+	_move_records.append(record)
+	if engine.push_move(move) == OK:
+		return true
+	_move_records.pop_back()
+	return false
+
+
+func _remove_last_record() -> void:
+	if not _move_records.is_empty():
+		_move_records.pop_back()
+
+
+func _emit_game_state() -> void:
+	var side_to_move := human_color
+	if engine != null:
+		side_to_move = engine.get_position_view().side_to_move
+	game_state_changed.emit({
+		"state": State.keys()[state].to_lower(),
+		"human_color": human_color,
+		"side_to_move": side_to_move,
+		"human_time_left": human_time_left,
+		"ai_depth": _last_search_depth,
+	})
 
 
 func _square_name(square: int) -> String:
