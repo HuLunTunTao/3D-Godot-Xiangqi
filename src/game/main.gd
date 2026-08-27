@@ -6,12 +6,14 @@ const ControllerScript = preload("res://src/game/game_controller.gd")
 const BoardViewScript = preload("res://src/game/board_view.gd")
 const CameraScript = preload("res://src/game/orbit_camera.gd")
 const HudScript = preload("res://src/game/game_hud.gd")
+const AudioScript = preload("res://src/game/game_audio.gd")
 const Types = preload("res://addons/pikafish/core/types.gd")
 
 var controller: XiangqiGameController
 var board: XiangqiBoardView
 var camera_rig: XiangqiOrbitCamera
 var hud: XiangqiGameHud
+var game_audio: XiangqiGameAudio
 var selected_square := Types.SQ_NONE
 var selected_targets := PackedInt32Array()
 
@@ -40,6 +42,8 @@ func create_game_nodes() -> void:
 	board.set_camera(camera_rig)
 	controller = ControllerScript.new()
 	add_child(controller)
+	game_audio = AudioScript.new()
+	add_child(game_audio)
 
 
 func create_hud() -> void:
@@ -59,6 +63,7 @@ func create_hud() -> void:
 	controller.search_progress.connect(hud.set_search_depth)
 	controller.game_state_changed.connect(hud.set_game_state)
 	controller.game_ended.connect(hud.show_game_end)
+	controller.board_changed.connect(_on_audio_board_changed)
 
 
 func _show_initial_position() -> void:
@@ -110,6 +115,11 @@ func _on_board_changed(view, move_info) -> void:
 	board.show_position(view, move_info)
 	clear_selection()
 	hud.set_moves(controller.move_records())
+
+
+func _on_audio_board_changed(_view, move_info) -> void:
+	if game_audio != null:
+		game_audio.play_move(move_info, controller.human_color)
 
 
 func _unhandled_input(event: InputEvent) -> void:
