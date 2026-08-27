@@ -4,7 +4,12 @@
   <p>在 Godot 4.7 里下中国象棋，或把同一套引擎嵌进你的项目</p>
 </div>
 
-推理引擎大量参考了 [Pikafish](https://github.com/official-pikafish/Pikafish) 的 ，并使用 Godot实现 ：可玩的 3D 对局、可嵌入的引擎 addon，以及与官方网络对齐的 NNUE 推理（CPU 增量搜索；GPU 用于批量评估）。
+推理引擎大量参考了 [Pikafish](https://github.com/official-pikafish/Pikafish) 的代码 ，并使用 Godot 重新实现
+
+目前提供：
+- 可玩的 3D 象棋版本
+- 可嵌入的推理引擎 godot addon
+- 与Pikafish官方网络对齐的 NNUE 推理（CPU 增量搜索；GPU 用于批量评估）。
 
 | 你想… | 从这里开始 |
 |---|---|
