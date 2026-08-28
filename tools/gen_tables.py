@@ -267,20 +267,22 @@ assert cumulative == THREAT_DIM, f"ThreatOffsets count {cumulative} != {THREAT_D
 print(f"ThreatOffsets: {cumulative} valid (expect {THREAT_DIM}) OK")
 
 # ---- export ----
-def _export():
-    os.makedirs(OUT, exist_ok=True)
+def _export(out_dir=None):
+    if out_dir is None:
+        out_dir = OUT
+    os.makedirs(out_dir, exist_ok=True)
     # valid_bb.bin: 16*90 u8 mask
-    with open(os.path.join(OUT, "valid_bb.bin"), "wb") as f:
+    with open(os.path.join(out_dir, "valid_bb.bin"), "wb") as f:
         for pc in range(16):
             for s in range(90):
                 f.write(bytes([1 if ValidBB[pc] & square_bb(s) else 0]))
     # psq_offsets.bin: u16[16][90]
-    with open(os.path.join(OUT, "psq_offsets.bin"), "wb") as f:
+    with open(os.path.join(out_dir, "psq_offsets.bin"), "wb") as f:
         for pc in range(16):
             for s in range(90):
                 f.write(struct.pack("<H", PSQOffsets[pc][s]))
     # threat_offsets.bin: u16[16][90][90][16]
-    with open(os.path.join(OUT, "threat_offsets.bin"), "wb") as f:
+    with open(os.path.join(out_dir, "threat_offsets.bin"), "wb") as f:
         for a in range(16):
             for frm in range(90):
                 for to in range(90):
@@ -291,4 +293,11 @@ def _export():
 
 
 if __name__ == "__main__":
-    _export()
+    import argparse
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "-o", "--out",
+        default=OUT,
+        help=f"Output directory for table blobs (default: {OUT})",
+    )
+    _export(parser.parse_args().out)

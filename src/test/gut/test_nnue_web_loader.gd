@@ -1,6 +1,7 @@
 extends GutTest
 
 const Loader = preload("res://src/game/nnue_web_loader.gd")
+const ExportPlugin = preload("res://addons/pikafish/tools/export_plugin.gd")
 
 
 func test_join_page_url_strips_index_query_and_hash() -> void:
@@ -38,6 +39,49 @@ func test_extract_zip_and_cache_stamp() -> void:
 	assert_false(Loader.cache_matches(dest, "nope"))
 	_wipe(dest)
 	DirAccess.remove_absolute(zip_path)
+
+
+func test_web_preset_excludes_nnue_weight_dirs() -> void:
+	var text := FileAccess.get_file_as_string("res://export_presets.cfg")
+	assert_false(text.is_empty())
+	var tokens := _web_exclude_filter_tokens(text)
+	assert_gt(tokens.size(), 0)
+	assert_true(tokens.has("data/*"), ",".join(tokens))
+	assert_true(tokens.has("addons/pikafish/data/*"), ",".join(tokens))
+
+
+func test_exclude_filter_tokens_require_root_data_entry() -> void:
+	var tokens := _web_exclude_filter_tokens(
+		'exclude_filter="src/test/*,addons/pikafish/data/*"\n'
+	)
+	assert_true(tokens.has("addons/pikafish/data/*"))
+	assert_false(tokens.has("data/*"))
+
+
+func test_export_plugin_skips_packing_on_web() -> void:
+	assert_false(ExportPlugin.should_pack_weights(PackedStringArray(["web"])))
+	assert_false(ExportPlugin.should_pack_weights(PackedStringArray(["javascript", "web", "etc2"])))
+	assert_false(ExportPlugin.should_pack_weights(PackedStringArray(["Web"])))
+	assert_true(ExportPlugin.should_pack_weights(PackedStringArray(["pc", "linux"])))
+	assert_true(ExportPlugin.should_pack_weights(PackedStringArray(["android", "mobile"])))
+	assert_true(ExportPlugin.should_pack_weights(PackedStringArray()))
+
+
+func _web_exclude_filter_tokens(preset_text: String) -> PackedStringArray:
+	var exclude_line := ""
+	for line in preset_text.split("\n"):
+		if line.begins_with("exclude_filter="):
+			exclude_line = line.strip_edges()
+			break
+	var value := exclude_line.trim_prefix("exclude_filter=")
+	if value.begins_with("\"") and value.ends_with("\"") and value.length() >= 2:
+		value = value.substr(1, value.length() - 2)
+	var tokens := PackedStringArray()
+	for part in value.split(","):
+		var token := part.strip_edges()
+		if not token.is_empty():
+			tokens.append(token)
+	return tokens
 
 
 func _wipe(path: String) -> void:

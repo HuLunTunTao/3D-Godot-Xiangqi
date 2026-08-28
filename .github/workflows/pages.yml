@@ -55,11 +55,18 @@ jobs:
       - name: Fetch and parse master-net
         run: |
           set -euo pipefail
+          # Parse outside the Godot project. If blobs sit in data/ during
+          # --export-release, all_resources + the Pikafish export plugin pack
+          # them into the PCK (failed run: pck=81MB with res://data/*.bin).
           curl -fL --retry 3 -o /tmp/pikafish.nnue "$NNUE_URL"
-          python3 tools/parse_nnue.py /tmp/pikafish.nnue
-          python3 tools/gen_tables.py
-          test -f data/manifest.json
-          test -s data/ft_threatW.bin
+          python3 tools/parse_nnue.py /tmp/pikafish.nnue -o /tmp/nnue-data
+          python3 tools/gen_tables.py -o /tmp/nnue-data
+          test -f /tmp/nnue-data/manifest.json
+          test -s /tmp/nnue-data/ft_threatW.bin
+          if [ -e data ]; then
+            echo "data/ must not exist in the project during Web export" >&2
+            exit 1
+          fi
 
       - name: Strip editor-only autoload for export
         run: |
@@ -74,6 +81,10 @@ jobs:
       - name: Import and export Web
         run: |
           set -euo pipefail
+          if [ -e data ]; then
+            echo "data/ must not exist during Web export" >&2
+            exit 1
+          fi
           mkdir -p build/web
           ~/godot/godot --headless --path . --import || true
           ~/godot/godot --headless --path . --export-release "Web" build/web/index.html
@@ -83,7 +94,7 @@ jobs:
 
       - name: Pack NNUE sidecar
         run: |
-          python3 tools/pack_web_nnue.py --data data --zip build/web/nnue-data.zip --meta build/web/nnue-pack.json
+          python3 tools/pack_web_nnue.py --data /tmp/nnue-data --zip build/web/nnue-data.zip --meta build/web/nnue-pack.json
           python3 - <<'PY'
           from pathlib import Path
           pck = next(Path("build/web").glob("*.pck"))
