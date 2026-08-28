@@ -209,6 +209,26 @@ static func configure_zip_http(http: HTTPRequest) -> void:
 	http.accept_gzip = false
 
 
+## HTML5 `HTTPRequest.download_file` can finish RESULT_SUCCESS with an empty
+## dest file and an empty signal body, which looks like a checksum failure.
+static func uses_download_file() -> bool:
+	return not OS.has_feature("web")
+
+
+static func persist_download(dest: String, body: PackedByteArray) -> Error:
+	if downloaded_byte_count(dest) > 0:
+		return OK
+	if body.is_empty():
+		return ERR_FILE_CORRUPT
+	var out := FileAccess.open(dest, FileAccess.WRITE)
+	if out == null:
+		return ERR_CANT_CREATE
+	out.store_buffer(body)
+	if downloaded_byte_count(dest) != body.size():
+		return ERR_FILE_CANT_WRITE
+	return OK
+
+
 static func flush_web_fs() -> void:
 	if not OS.has_feature("web"):
 		return
@@ -243,22 +263,24 @@ func _fetch_pack_info() -> Dictionary:
 
 func _download_to(url: String, dest: String) -> Error:
 	progress_changed.emit(0, 0, "正在下载棋力网络")
-	_http.download_file = dest
+	_http.download_file = dest if uses_download_file() else ""
 	configure_zip_http(_http)
 	var err := await _request(url)
 	_http.download_file = ""
 	if err != OK:
 		return err
-	if downloaded_byte_count(dest) <= 0:
-		var body: PackedByteArray = _result[3] if _result.size() > 3 else PackedByteArray()
-		if body.is_empty():
-			last_error = "下载失败（文件为空）"
-			return ERR_FILE_CORRUPT
-		var out := FileAccess.open(dest, FileAccess.WRITE)
-		if out == null:
-			last_error = "无法保存权重包"
-			return ERR_CANT_CREATE
-		out.store_buffer(body)
+	var body: PackedByteArray = _result[3] if _result.size() > 3 else PackedByteArray()
+	var body_size := body.size()
+	err = persist_download(dest, body)
+	if _result.size() > 3:
+		_result[3] = PackedByteArray()
+	if err != OK:
+		last_error = "下载失败（无法保存权重包，HTTP %d，body %d，文件 %d）" % [
+			int(_result[1]) if _result.size() > 1 else 0,
+			body_size,
+			downloaded_byte_count(dest),
+		]
+		return err
 	return OK
 
 

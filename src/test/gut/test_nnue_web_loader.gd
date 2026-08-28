@@ -78,6 +78,22 @@ func test_configure_zip_http_disables_gzip() -> void:
 	http.free()
 
 
+func test_persist_download_writes_body_when_dest_missing() -> void:
+	var path := "user://nnue_test_persist.bin"
+	if FileAccess.file_exists(path):
+		DirAccess.remove_absolute(path)
+	assert_eq(Loader.persist_download(path, PackedByteArray()), ERR_FILE_CORRUPT)
+	assert_eq(Loader.persist_download(path, PackedByteArray([9, 8, 7])), OK)
+	assert_eq(FileAccess.get_file_as_bytes(path), PackedByteArray([9, 8, 7]))
+	assert_eq(Loader.persist_download(path, PackedByteArray([1])), OK)
+	assert_eq(FileAccess.get_file_as_bytes(path), PackedByteArray([9, 8, 7]))
+	DirAccess.remove_absolute(path)
+
+
+func test_headless_still_streams_zip_with_download_file() -> void:
+	assert_true(Loader.uses_download_file())
+
+
 func test_loader_does_not_use_fileaccess_get_sha256() -> void:
 	var src := FileAccess.get_file_as_string("res://src/game/nnue_web_loader.gd")
 	assert_false(src.contains("FileAccess.get_sha256("), src)
