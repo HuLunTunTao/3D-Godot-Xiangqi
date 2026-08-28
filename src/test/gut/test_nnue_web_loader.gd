@@ -218,6 +218,9 @@ func test_pages_workflow_patches_service_worker_after_sidecar() -> void:
 	assert_string_contains(patcher, "nnue-data.zip")
 	assert_string_contains(patcher, "CACHED_FILES")
 	assert_string_contains(patcher, "CACHEABLE_FILES")
+	assert_string_contains(patcher, "local.split(")
+	assert_false(patcher.contains("url.split("), patcher)
+	assert_string_contains(text, "service-worker.js")
 
 
 func _web_exclude_filter_tokens(preset_text: String) -> PackedStringArray:

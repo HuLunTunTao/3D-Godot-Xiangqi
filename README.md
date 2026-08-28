@@ -33,7 +33,7 @@
 
 GitHub Pages：[https://huluntuntao.github.io/3D-Godot-Xiangqi/](https://huluntuntao.github.io/3D-Godot-Xiangqi/)
 
-将在进入游戏后，自动从下载模型权重（约52MB），权重文件来自Pikafish官方仓库。浏览器会把解压后的权重缓存在本地，再次打开一般不用重新下载；iPhone 上把页面添加到主屏幕后，缓存更不容易被清掉。
+将在进入游戏后自动下载模型权重（约52MB），权重文件来自Pikafish官方仓库。浏览器会把解压后的权重缓存在本地，再次打开一般不用重新下载；iPhone 上把页面添加到主屏幕后，缓存更不容易被清掉。
 
 ![对局中](docs/images/github-pages-midgame.png)
 

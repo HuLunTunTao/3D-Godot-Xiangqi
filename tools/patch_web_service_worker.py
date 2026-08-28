@@ -19,7 +19,7 @@ RUNTIME = ("nnue-data.zip",)
 IS_CACHEABLE = re.compile(r"FULL_CACHE\.some\(\(v\)\s*=>\s*v\s*===\s*local\)")
 IS_CACHEABLE_REPL = (
     "FULL_CACHE.some((v) => v === local || "
-    "v === url.split('?')[0].split('#')[0].split('/').pop())"
+    "v === local.split('?')[0].split('#')[0].split('/').pop())"
 )
 
 

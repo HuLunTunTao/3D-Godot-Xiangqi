@@ -111,8 +111,13 @@ jobs:
           PY
           python3 tools/patch_web_service_worker.py --dir build/web
           test -f build/web/.nojekyll || touch build/web/.nojekyll
-          grep -F 'nnue-pack.json' build/web/*.service.worker.js
-          grep -F 'nnue-data.zip' build/web/*.service.worker.js
+          mapfile -t sw_files < <(find build/web -maxdepth 1 \( -name '*.service.worker.js' -o -name '*service-worker.js' \) -print)
+          if [ ${#sw_files[@]} -eq 0 ]; then
+            echo "no service worker found after patch" >&2
+            exit 1
+          fi
+          grep -F 'nnue-pack.json' "${sw_files[@]}"
+          grep -F 'nnue-data.zip' "${sw_files[@]}"
 
       - uses: actions/upload-pages-artifact@v3
         with:
