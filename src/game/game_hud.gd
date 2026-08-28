@@ -10,8 +10,11 @@ signal reset_view_requested
 signal resign_requested
 
 const UiFont = preload("res://assets/fonts/SourceHanSansCN-Regular.otf")
+const LoaderScript = preload("res://src/game/nnue_web_loader.gd")
 const RED_TINT := Color("b66d68")
 const MUTED := Color("aab4ba")
+const HOMESCREEN_HINT_STAMP := "user://web_homescreen_hint_dismissed"
+const HOMESCREEN_HINT_TEXT := "添加到主屏幕后，棋力网络更不容易被清掉。"
 
 var _root: Control
 var status_panel: PanelContainer
@@ -29,6 +32,7 @@ var load_panel: PanelContainer
 var load_title_label: Label
 var load_detail_label: Label
 var load_bar: ProgressBar
+var homescreen_hint: Control
 var status_label: Label
 var player_label: Label
 var clock_label: Label
@@ -341,6 +345,55 @@ func hide_loading() -> void:
 	load_overlay.visible = false
 
 
+static func should_show_homescreen_hint(is_web: bool, is_standalone: bool, dismissed: bool) -> bool:
+	return is_web and not is_standalone and not dismissed
+
+
+static func is_homescreen_hint_dismissed() -> bool:
+	return FileAccess.file_exists(HOMESCREEN_HINT_STAMP)
+
+
+static func dismiss_homescreen_hint() -> void:
+	var f := FileAccess.open(HOMESCREEN_HINT_STAMP, FileAccess.WRITE)
+	if f != null:
+		f.store_string("1")
+		f.close()
+	if OS.has_feature("web"):
+		LoaderScript.flush_web_fs()
+
+
+func maybe_show_homescreen_hint() -> void:
+	if homescreen_hint == null:
+		return
+	homescreen_hint.visible = should_show_homescreen_hint(
+		OS.has_feature("web"),
+		LoaderScript.is_standalone_web_app(),
+		is_homescreen_hint_dismissed()
+	)
+
+
+func _build_homescreen_hint() -> Control:
+	var wrap := VBoxContainer.new()
+	wrap.add_theme_constant_override("separation", 8)
+	wrap.visible = false
+	homescreen_hint = wrap
+	var text := make_hint(HOMESCREEN_HINT_TEXT)
+	text.add_theme_font_size_override("font_size", 14)
+	wrap.add_child(text)
+	var dismiss := Button.new()
+	dismiss.text = "知道了"
+	dismiss.custom_minimum_size.y = 36
+	dismiss.add_theme_font_size_override("font_size", 15)
+	dismiss.add_theme_stylebox_override("normal", button_style(Color("2b3338")))
+	dismiss.add_theme_stylebox_override("hover", button_style(Color("3a464d")))
+	dismiss.pressed.connect(func():
+		dismiss_homescreen_hint()
+		homescreen_hint.visible = false
+	)
+	wrap.add_child(dismiss)
+	return wrap
+
+
 func build_setup_panel(default_human_time: float, default_ai_time_ms: int, default_ai_depth: int) -> PanelContainer:
 	var panel := PanelContainer.new()
 	panel.add_theme_stylebox_override("panel", panel_style(Color("20272c")))
@@ -359,6 +412,7 @@ func build_setup_panel(default_human_time: float, default_ai_time_ms: int, defau
 	var subtitle := make_hint("人机对战 · 设置会自动保存\n每步计时归零即判负")
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(subtitle)
+	box.add_child(_build_homescreen_hint())
 	color_option = OptionButton.new()
 	color_option.add_item("执红（先手）", 0)
 	color_option.add_item("执黑（后手）", 1)

@@ -59,3 +59,29 @@ func test_layout_uses_canvas_coordinates_for_landscape_and_portrait() -> void:
 	assert_true(Rect2(Vector2.ZERO, short_size).encloses(hud.end_panel.get_rect()))
 	remove_child(hud)
 	hud.free()
+
+
+func test_homescreen_hint_is_once_dismissible_and_hidden_off_web() -> void:
+	if FileAccess.file_exists(Hud.HOMESCREEN_HINT_STAMP):
+		DirAccess.remove_absolute(Hud.HOMESCREEN_HINT_STAMP)
+	assert_false(Hud.should_show_homescreen_hint(false, false, false))
+	assert_true(Hud.should_show_homescreen_hint(true, false, false))
+	assert_false(Hud.should_show_homescreen_hint(true, true, false))
+	assert_false(Hud.should_show_homescreen_hint(true, false, true))
+	assert_string_contains(Hud.HOMESCREEN_HINT_TEXT, "主屏幕")
+	var hud: XiangqiGameHud = Hud.new()
+	add_child(hud)
+	hud.build(60.0, 1500, 12)
+	await get_tree().process_frame
+	assert_false(hud.homescreen_hint.visible)
+	hud.maybe_show_homescreen_hint()
+	assert_false(hud.homescreen_hint.visible)
+	assert_false(Hud.is_homescreen_hint_dismissed())
+	Hud.dismiss_homescreen_hint()
+	assert_true(Hud.is_homescreen_hint_dismissed())
+	assert_true(FileAccess.file_exists(Hud.HOMESCREEN_HINT_STAMP))
+	hud.maybe_show_homescreen_hint()
+	assert_false(hud.homescreen_hint.visible)
+	DirAccess.remove_absolute(Hud.HOMESCREEN_HINT_STAMP)
+	remove_child(hud)
+	hud.free()
