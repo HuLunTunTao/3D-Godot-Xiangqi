@@ -1,17 +1,24 @@
 <div align="center">
   <img src="./docs/images/icon-256.png" alt="Pikafish logo" height="96">
   <h1>3D Godot 象棋</h1>
-  <p>在 Godot 4.7 里下中国象棋，或把同一套引擎嵌进你的项目</p>
+  <p>基于GDS和compute shader的类Pikafish中国象棋推理引擎及示例游戏</p>
 </div>
 
+仅是一个实验性项目
+
 推理引擎大量参考了 [Pikafish](https://github.com/official-pikafish/Pikafish) 的代码 ，并使用 Godot 重新实现
+
+但具体逻辑与Pikafish之间仍存在差异，并非严格对齐
+
+由于象棋推理在用户设备上优先使用GPU运行计算着色器运行，失败时fallback到CPU运行GDS，因此性能与用户设备存在很大的关系
+
+对于硬件配置欠缺的设备，会有明显的卡顿问题
 
 浏览器可直接打开 [GitHub Pages 试玩](https://huluntuntao.github.io/3D-Godot-Xiangqi/)。
 
 目前提供：
 - 可玩的 3D 象棋版本
 - 可嵌入的推理引擎 godot addon
-- 与Pikafish官方网络对齐的 NNUE 推理（CPU 增量搜索；GPU 用于批量评估）。
 
 | 你想… | 从这里开始 |
 |---|---|
@@ -24,21 +31,9 @@
 
 ## 浏览器试玩
 
-GitHub Pages 托管单线程 Web 导出：[https://huluntuntao.github.io/3D-Godot-Xiangqi/](https://huluntuntao.github.io/3D-Godot-Xiangqi/)
+GitHub Pages：[https://huluntuntao.github.io/3D-Godot-Xiangqi/](https://huluntuntao.github.io/3D-Godot-Xiangqi/)
 
-游戏 PCK 不含 NNUE 权重。第一次打开会从同域下载 `nnue-data.zip`（约 52 MB），随后缓存在浏览器 `user://`；再进页面不必重下。
-
-推送到 `main` 或手动跑 `Pages` workflow 后更新该地址。仓库需在 Settings → Pages → Source 选 **GitHub Actions**。CI 每次从 [Pikafish Networks `master-net`](https://github.com/official-pikafish/Networks/releases/tag/master-net) 拉取 `pikafish.nnue`，解析后与 wasm 分开放。
-
-开局（开始对局后，红方待走）：
-
-![开局](docs/images/github-pages-start.png)
-
-对局中（炮二平五，引擎回马八进七）：
-
-![对局中](docs/images/github-pages-cannon.png)
-
-对局中（再走马八进七、兵五进一之后）：
+将在进入游戏后，自动从下载模型权重（约52MB），权重文件来自Pikafish官方仓库
 
 ![对局中](docs/images/github-pages-midgame.png)
 
