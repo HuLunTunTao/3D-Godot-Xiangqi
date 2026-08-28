@@ -174,8 +174,12 @@ include_filter="data/*.bin,data/*.json,data/*.txt,addons/pikafish/data/*.bin,add
 4. Optionally enable this addon’s editor plugin so `tools/export_plugin.gd`
    force-packs `res://addons/pikafish/data/*.{bin,json,txt}`.
 
-A correct full PCK is on the order of tens of MiB (weights dominate). A ~1–2 MiB
-PCK or empty oracle arrays usually means weights were not packed.
+Web / GitHub Pages must **not** pack weights: the host downloads `nnue-data.zip`
+after load. `export_plugin.gd` skips the `web` feature so `add_file()` cannot
+bypass the Web preset `exclude_filter`. Desktop and device packages are unchanged.
+
+A correct full (non-web) PCK is on the order of tens of MiB (weights dominate).
+A ~1–2 MiB PCK or empty oracle arrays usually means weights were not packed.
 
 Generate host `data/` with the repo `tools/parse_nnue.py`, `gen_tables.py`, and
 `gen_reference.py` (see root README / `AGENTS.md`).

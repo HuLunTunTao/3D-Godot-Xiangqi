@@ -1,6 +1,7 @@
 extends GutTest
 
 const Loader = preload("res://src/game/nnue_web_loader.gd")
+const ExportPlugin = preload("res://addons/pikafish/tools/export_plugin.gd")
 
 
 func test_join_page_url_strips_index_query_and_hash() -> void:
@@ -38,6 +39,27 @@ func test_extract_zip_and_cache_stamp() -> void:
 	assert_false(Loader.cache_matches(dest, "nope"))
 	_wipe(dest)
 	DirAccess.remove_absolute(zip_path)
+
+
+func test_web_preset_excludes_nnue_weight_dirs() -> void:
+	var text := FileAccess.get_file_as_string("res://export_presets.cfg")
+	assert_false(text.is_empty())
+	var exclude_line := ""
+	for line in text.split("\n"):
+		if line.begins_with("exclude_filter="):
+			exclude_line = line
+			break
+	assert_true(exclude_line.contains("data/*"), exclude_line)
+	assert_true(exclude_line.contains("addons/pikafish/data/*"), exclude_line)
+
+
+func test_export_plugin_skips_packing_on_web() -> void:
+	assert_false(ExportPlugin.should_pack_weights(PackedStringArray(["web"])))
+	assert_false(ExportPlugin.should_pack_weights(PackedStringArray(["javascript", "web", "etc2"])))
+	assert_false(ExportPlugin.should_pack_weights(PackedStringArray(["Web"])))
+	assert_true(ExportPlugin.should_pack_weights(PackedStringArray(["pc", "linux"])))
+	assert_true(ExportPlugin.should_pack_weights(PackedStringArray(["android", "mobile"])))
+	assert_true(ExportPlugin.should_pack_weights(PackedStringArray()))
 
 
 func _wipe(path: String) -> void:

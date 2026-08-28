@@ -4,6 +4,10 @@ extends EditorExportPlugin
 ## Ensures NNUE `.bin` / `.json` / `.txt` weights are packed even if the host preset
 ## omits them (e.g. `data/.gdignore` or missing include_filter).
 ##
+## Web / GitHub Pages is the exception: the host downloads `nnue-data.zip` after
+## load (`NnueWebLoader`). Never embed the ~70 MB blobs in the web PCK — this
+## plugin's `add_file()` would otherwise bypass `exclude_filter`.
+##
 ## Recommended export preset (project root `data/` or addon copy):
 ##   include_filter="data/*.bin,data/*.json,data/*.txt,addons/pikafish/data/*.bin,addons/pikafish/data/*.json,addons/pikafish/data/*.txt"
 ##
@@ -16,9 +20,18 @@ func _get_name() -> String:
 	return "PikafishExportPlugin"
 
 
+static func should_pack_weights(features: PackedStringArray) -> bool:
+	for feature in features:
+		if str(feature).to_lower() == "web":
+			return false
+	return true
+
+
 func _export_begin(
-	_features: PackedStringArray, _is_debug: bool, _path: String, _flags: int
+	features: PackedStringArray, _is_debug: bool, _path: String, _flags: int
 ) -> void:
+	if not should_pack_weights(features):
+		return
 	_pack_dir("res://addons/pikafish/data")
 	_pack_dir("res://data")
 
