@@ -15,6 +15,76 @@ func test_join_page_url_strips_index_query_and_hash() -> void:
 	)
 
 
+func test_file_sha256_hashes_known_bytes_in_chunks() -> void:
+	var path := "user://nnue_test_sha.bin"
+	if FileAccess.file_exists(path):
+		DirAccess.remove_absolute(path)
+	var payload := PackedByteArray()
+	payload.resize(5000)
+	payload.fill(ord("x"))
+	var out := FileAccess.open(path, FileAccess.WRITE)
+	assert_not_null(out)
+	out.store_buffer(payload)
+	out.close()
+	assert_eq(Loader.file_sha256(path), "c59d3c0480cc2d71d8f646e735e92da65450311eec46e81a5db8c7e6e8a92054")
+	assert_eq(Loader.downloaded_byte_count(path), 5000)
+	DirAccess.remove_absolute(path)
+
+
+func test_file_sha256_returns_empty_for_missing_file() -> void:
+	var path := "user://nnue_test_missing_sha.bin"
+	if FileAccess.file_exists(path):
+		DirAccess.remove_absolute(path)
+	assert_eq(Loader.file_sha256(path), "")
+	assert_eq(Loader.downloaded_byte_count(path), -1)
+
+
+func test_empty_digest_does_not_match_pack_sha() -> void:
+	var expected := "e9a70da911e7a658493854b96b34db5c9e25a75d32fc402dd0e9093a7b20c2a4"
+	assert_false(Loader.pack_hash_matches("", expected))
+	assert_false(Loader.pack_hash_matches("", ""))
+	assert_true(Loader.pack_hash_matches(expected.to_upper(), expected))
+
+
+func test_size_check_rejects_mismatch_and_empty_download() -> void:
+	assert_eq(Loader.size_check_error(52602089, 52602089), OK)
+	assert_eq(Loader.size_check_error(12, 52602089), ERR_INVALID_DATA)
+	assert_eq(Loader.size_check_error(0, 0), ERR_FILE_CORRUPT)
+	assert_eq(Loader.size_check_error(-1, 52602089), ERR_INVALID_DATA)
+
+
+func test_integrity_error_includes_expected_and_actual() -> void:
+	var size_err := Loader.integrity_failure_text(
+		"aaa", "bbb", 12, 52602089
+	)
+	assert_string_contains(size_err, "12")
+	assert_string_contains(size_err, "52602089")
+	var hash_err := Loader.integrity_failure_text(
+		"aaa", "bbb", 4, 4
+	)
+	assert_string_contains(hash_err, "aaa")
+	assert_string_contains(hash_err, "bbb")
+	assert_string_contains(hash_err, "4")
+	var empty_hash := Loader.integrity_failure_text("", "bbb", 4, 4)
+	assert_string_contains(empty_hash, "无法计算 SHA-256")
+	assert_string_contains(empty_hash, "bbb")
+
+
+func test_configure_zip_http_disables_gzip() -> void:
+	var http := HTTPRequest.new()
+	assert_true(http.accept_gzip)
+	Loader.configure_zip_http(http)
+	assert_false(http.accept_gzip)
+	http.free()
+
+
+func test_loader_does_not_use_fileaccess_get_sha256() -> void:
+	var src := FileAccess.get_file_as_string("res://src/game/nnue_web_loader.gd")
+	assert_false(src.contains("FileAccess.get_sha256("), src)
+	assert_true(src.contains("HashingContext"))
+	assert_true(src.contains("configure_zip_http"))
+
+
 func test_extract_zip_and_cache_stamp() -> void:
 	var dest := "user://nnue_test_extract"
 	var zip_path := "user://nnue_test_extract.zip"
