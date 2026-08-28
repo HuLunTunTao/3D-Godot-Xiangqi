@@ -6,6 +6,8 @@
 
 推理引擎大量参考了 [Pikafish](https://github.com/official-pikafish/Pikafish) 的代码 ，并使用 Godot 重新实现
 
+浏览器可直接打开 [GitHub Pages 试玩](https://huluntuntao.github.io/3D-Godot-Xiangqi/)。
+
 目前提供：
 - 可玩的 3D 象棋版本
 - 可嵌入的推理引擎 godot addon
@@ -13,6 +15,7 @@
 
 | 你想… | 从这里开始 |
 |---|---|
+| 浏览器打开就能下 | [浏览器试玩](#浏览器试玩) |
 | 打开就能下 | [下棋](#下棋) |
 | 嵌进自己的 Godot 项目 | [当引擎用](#当引擎用) |
 | 生成权重、跑测试、看性能 | [开发与复现](#开发与复现) |
@@ -21,13 +24,23 @@
 
 ## 浏览器试玩
 
-GitHub Pages 托管单线程 Web 导出：游戏本体不含 NNUE 权重，打开页面后从同域再下载 `nnue-data.zip`（约 70 MB，缓存到浏览器 `user://`）。
+GitHub Pages 托管单线程 Web 导出：[https://huluntuntao.github.io/3D-Godot-Xiangqi/](https://huluntuntao.github.io/3D-Godot-Xiangqi/)
 
-推送到 `main` 或手动跑 `Pages` workflow 后，地址为：
+游戏 PCK 不含 NNUE 权重。第一次打开会从同域下载 `nnue-data.zip`（约 52 MB），随后缓存在浏览器 `user://`；再进页面不必重下。
 
-**https://huluntuntao.github.io/3D-Godot-Xiangqi/**
+推送到 `main` 或手动跑 `Pages` workflow 后更新该地址。仓库需在 Settings → Pages → Source 选 **GitHub Actions**。CI 每次从 [Pikafish Networks `master-net`](https://github.com/official-pikafish/Networks/releases/tag/master-net) 拉取 `pikafish.nnue`，解析后与 wasm 分开放。
 
-仓库需在 Settings → Pages → Source 选 **GitHub Actions**。CI 每次从 [Pikafish Networks `master-net`](https://github.com/official-pikafish/Networks/releases/tag/master-net) 拉取 `pikafish.nnue`，解析后与 wasm 分开放。
+开局（开始对局后，红方待走）：
+
+![开局](docs/images/github-pages-start.png)
+
+对局中（炮二平五，引擎回马八进七）：
+
+![对局中](docs/images/github-pages-cannon.png)
+
+对局中（再走马八进七、兵五进一之后）：
+
+![对局中](docs/images/github-pages-midgame.png)
 
 ## 下棋
 
@@ -58,7 +71,7 @@ godot --headless --path . -s res://tools/smoke_addon_headless.gd
 
 ## 准备权重
 
-对局和 addon 都从 `res://data`（或 `res://addons/pikafish/data`）读 `manifest.json` 与 `.bin` 权重，约 70 MB，**不入 git**。
+对局和 addon 都从 `res://data`（或 `res://addons/pikafish/data`）读 `manifest.json` 与 `.bin` 权重，约 70 MB，**不入 git**。浏览器试玩不需要这一步，权重由 Pages 侧载，见 [浏览器试玩](#浏览器试玩)。
 
 只需官方 `pikafish.nnue` 和 Python 3：
 
