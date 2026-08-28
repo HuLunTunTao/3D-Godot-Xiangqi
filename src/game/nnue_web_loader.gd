@@ -152,19 +152,21 @@ static func file_sha256(path: String) -> String:
 	var file := FileAccess.open(path, FileAccess.READ)
 	if file == null:
 		return ""
+	var digest := PackedByteArray()
 	var ctx := HashingContext.new()
-	if ctx.start(HashingContext.HASH_SHA256) != OK:
-		return ""
-	var total := file.get_length()
-	while file.get_position() < total:
-		var remaining := total - file.get_position()
-		var chunk := file.get_buffer(mini(remaining, HASH_CHUNK))
-		if chunk.is_empty():
-			break
-		if ctx.update(chunk) != OK:
-			return ""
-	var digest := ctx.finish()
-	if digest.size() != 32:
+	var ok := ctx.start(HashingContext.HASH_SHA256) == OK
+	if ok:
+		var total := file.get_length()
+		while ok and file.get_position() < total:
+			var remaining := total - file.get_position()
+			var chunk := file.get_buffer(mini(remaining, HASH_CHUNK))
+			if chunk.is_empty() or ctx.update(chunk) != OK:
+				ok = false
+				break
+		if ok and file.get_position() == total:
+			digest = ctx.finish()
+	file.close()
+	if not ok or digest.size() != 32:
 		return ""
 	return digest.hex_encode()
 
@@ -178,7 +180,9 @@ static func downloaded_byte_count(path: String) -> int:
 	var file := FileAccess.open(path, FileAccess.READ)
 	if file == null:
 		return -1
-	return file.get_length()
+	var length := file.get_length()
+	file.close()
+	return length
 
 
 static func size_check_error(actual_bytes: int, expected_bytes: int) -> Error:
@@ -198,6 +202,8 @@ static func pack_hash_matches(actual_sha: String, expected_sha: String) -> bool:
 static func integrity_failure_text(
 	actual_sha: String, expected_sha: String, actual_bytes: int, expected_bytes: int
 ) -> String:
+	if actual_bytes < 0:
+		return "权重包校验失败（无法读取文件大小，期望 %d）" % expected_bytes
 	if expected_bytes > 0 and actual_bytes != expected_bytes:
 		return "权重包校验失败（大小 %d，期望 %d）" % [actual_bytes, expected_bytes]
 	if actual_sha.is_empty():
