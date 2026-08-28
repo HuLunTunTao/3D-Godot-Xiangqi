@@ -224,6 +224,7 @@ static func persist_download(dest: String, body: PackedByteArray) -> Error:
 	if out == null:
 		return ERR_CANT_CREATE
 	out.store_buffer(body)
+	out.close()
 	if downloaded_byte_count(dest) != body.size():
 		return ERR_FILE_CANT_WRITE
 	return OK
