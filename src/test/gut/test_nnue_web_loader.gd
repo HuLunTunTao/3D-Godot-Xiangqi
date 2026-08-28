@@ -212,7 +212,7 @@ func test_pages_workflow_patches_service_worker_after_sidecar() -> void:
 	assert_string_contains(text, "tools/pack_web_nnue.py")
 	assert_string_contains(text, "tools/patch_web_service_worker.py")
 	assert_string_contains(text, ".nojekyll")
-	assert_gt(text.find("patch_web_service_worker.py"), text.find("pack_web_nnue.py"))
+	assert_gt(text.find("patch_web_service_worker.py --dir"), text.find("pack_web_nnue.py"))
 	var patcher := FileAccess.get_file_as_string("res://tools/patch_web_service_worker.py")
 	assert_string_contains(patcher, "nnue-pack.json")
 	assert_string_contains(patcher, "nnue-data.zip")
