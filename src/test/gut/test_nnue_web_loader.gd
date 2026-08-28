@@ -125,12 +125,14 @@ func test_extract_zip_and_cache_stamp() -> void:
 	assert_eq(Loader.extract_zip_to_dir(zip_path, dest), OK)
 	assert_true(FileAccess.file_exists(dest.path_join("manifest.json")))
 	assert_eq(FileAccess.get_file_as_bytes(dest.path_join("ft_bias.bin")), PackedByteArray([1, 2, 3, 4]))
+	assert_true(FileAccess.file_exists(zip_path))
+	Loader.discard_zip_after_extract(zip_path)
+	assert_false(FileAccess.file_exists(zip_path))
 	assert_false(Loader.cache_matches(dest, "abc"))
 	Loader.write_stamp(dest, "abc")
 	assert_true(Loader.cache_matches(dest, "abc"))
 	assert_false(Loader.cache_matches(dest, "nope"))
 	_wipe(dest)
-	DirAccess.remove_absolute(zip_path)
 
 
 func test_web_preset_excludes_nnue_weight_dirs() -> void:
@@ -157,6 +159,68 @@ func test_export_plugin_skips_packing_on_web() -> void:
 	assert_true(ExportPlugin.should_pack_weights(PackedStringArray(["pc", "linux"])))
 	assert_true(ExportPlugin.should_pack_weights(PackedStringArray(["android", "mobile"])))
 	assert_true(ExportPlugin.should_pack_weights(PackedStringArray()))
+
+
+func test_cache_check_status_does_not_claim_download() -> void:
+	assert_false(Loader.STATUS_CHECKING.contains("下载"))
+	assert_false(Loader.STATUS_PREPARING.contains("下载"))
+	assert_true(Loader.STATUS_DOWNLOADING.contains("下载"))
+	assert_eq(Loader.STATUS_CACHED, "已使用本地缓存")
+	var main_src := FileAccess.get_file_as_string("res://src/game/main.gd")
+	assert_false(main_src.contains("正在下载棋力网络"), main_src)
+	assert_true(main_src.contains("STATUS_CHECKING"))
+	assert_true(main_src.contains("request_persistent_storage"))
+	var loader_src := FileAccess.get_file_as_string("res://src/game/nnue_web_loader.gd")
+	assert_true(loader_src.contains("_progress_status"))
+
+
+func test_progress_while_checking_pack_json_is_not_download() -> void:
+	var loader = Loader.new()
+	add_child(loader)
+	await get_tree().process_frame
+	var seen: Array[String] = []
+	loader.progress_changed.connect(func(_loaded, _total, status): seen.append(status))
+	loader._progress_status = Loader.STATUS_CHECKING
+	loader._waiting = true
+	loader._process(0.0)
+	assert_eq(seen.size(), 1)
+	assert_eq(seen[0], Loader.STATUS_CHECKING)
+	assert_false(seen[0].contains("下载"))
+	loader._waiting = false
+	remove_child(loader)
+	loader.free()
+
+
+func test_request_persistent_storage_is_safe_off_web() -> void:
+	assert_false(OS.has_feature("web"))
+	assert_false(Loader.request_persistent_storage())
+	assert_false(Loader.is_standalone_web_app())
+
+
+func test_web_pwa_enabled_keeps_isolation_off() -> void:
+	var text := FileAccess.get_file_as_string("res://export_presets.cfg")
+	assert_string_contains(text, "progressive_web_app/enabled=true")
+	assert_string_contains(text, "progressive_web_app/ensure_cross_origin_isolation_headers=false")
+	assert_string_contains(text, "variant/thread_support=false")
+	assert_false(text.contains("progressive_web_app/enabled=false"))
+
+
+func test_pages_workflow_patches_service_worker_after_sidecar() -> void:
+	var pages_path := ProjectSettings.globalize_path("res://.github/workflows/pages.yml")
+	var text := FileAccess.get_file_as_string(pages_path)
+	assert_false(text.is_empty(), pages_path)
+	assert_string_contains(text, "tools/pack_web_nnue.py")
+	assert_string_contains(text, "tools/patch_web_service_worker.py")
+	assert_string_contains(text, ".nojekyll")
+	assert_gt(text.find("patch_web_service_worker.py --dir"), text.find("pack_web_nnue.py"))
+	var patcher := FileAccess.get_file_as_string("res://tools/patch_web_service_worker.py")
+	assert_string_contains(patcher, "nnue-pack.json")
+	assert_string_contains(patcher, "nnue-data.zip")
+	assert_string_contains(patcher, "CACHED_FILES")
+	assert_string_contains(patcher, "CACHEABLE_FILES")
+	assert_string_contains(patcher, "local.split(")
+	assert_false(patcher.contains("url.split("), patcher)
+	assert_string_contains(text, "service-worker.js")
 
 
 func _web_exclude_filter_tokens(preset_text: String) -> PackedStringArray:

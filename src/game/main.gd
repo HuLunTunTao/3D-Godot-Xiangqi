@@ -72,7 +72,8 @@ func create_hud() -> void:
 func _boot_game() -> bool:
 	var network_dir := ""
 	if OS.has_feature("web"):
-		hud.show_loading("正在准备", "正在下载棋力网络…")
+		hud.show_loading("正在准备", "%s…" % LoaderScript.STATUS_CHECKING)
+		LoaderScript.request_persistent_storage()
 		var loader: NnueWebLoader = LoaderScript.new()
 		add_child(loader)
 		loader.progress_changed.connect(hud.set_loading_progress)
@@ -85,6 +86,7 @@ func _boot_game() -> bool:
 		hud.show_loading("无法开始", "引擎初始化失败")
 		return false
 	hud.hide_loading()
+	hud.maybe_show_homescreen_hint()
 	return true
 
 
@@ -128,6 +130,7 @@ func create_world() -> void:
 
 
 func _start_game(color_choice: String, human_seconds: float, ai_think_ms: int, ai_depth: int) -> void:
+	LoaderScript.request_persistent_storage()
 	clear_selection()
 	controller.start_game(color_choice, human_seconds, ai_think_ms, ai_depth)
 	camera_rig.reset_for_color(controller.human_color)

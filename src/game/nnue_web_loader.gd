@@ -11,6 +11,11 @@ const PACK_ZIP := "nnue-data.zip"
 const MANIFEST := "manifest.json"
 ## 256 KiB keeps WASM memory stable while hashing the ~52 MB sidecar.
 const HASH_CHUNK := 262144
+const STATUS_CHECKING := "正在检查棋力网络"
+const STATUS_PREPARING := "正在准备棋力网络"
+const STATUS_DOWNLOADING := "正在下载棋力网络"
+const STATUS_VERIFYING := "正在校验棋力网络"
+const STATUS_CACHED := "已使用本地缓存"
 
 signal progress_changed(loaded: int, total: int, status: String)
 
@@ -19,6 +24,7 @@ var last_error := ""
 
 var _http: HTTPRequest
 var _waiting := false
+var _progress_status := STATUS_CHECKING
 var _result: Array = []
 var _web_hash_cb: JavaScriptObject
 var _web_hash := ""
@@ -36,14 +42,15 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	if not _waiting:
 		return
-	progress_changed.emit(_http.get_downloaded_bytes(), _http.get_body_size(), "正在下载棋力网络")
+	progress_changed.emit(_http.get_downloaded_bytes(), _http.get_body_size(), _progress_status)
 
 
 func ensure_ready() -> Error:
 	if not OS.has_feature("web"):
 		network_dir = ""
 		return OK
-	progress_changed.emit(0, 0, "正在检查棋力网络")
+	request_persistent_storage()
+	progress_changed.emit(0, 0, STATUS_CHECKING)
 	var pack := await _fetch_pack_info()
 	if pack.is_empty():
 		return ERR_CANT_OPEN
@@ -51,12 +58,14 @@ func ensure_ready() -> Error:
 	if sha.is_empty():
 		last_error = "nnue-pack.json 缺少 sha256"
 		return ERR_INVALID_DATA
-	if cache_matches(CACHE_DIR, sha):
-		network_dir = CACHE_DIR
-		progress_changed.emit(1, 1, "已使用本地缓存")
-		return OK
 	var zip_name := str(pack.get("file", PACK_ZIP))
 	var zip_path := "user://%s" % zip_name.get_file()
+	if cache_matches(CACHE_DIR, sha):
+		# A previous extract may have left the sidecar zip in IDBFS.
+		discard_zip_after_extract(zip_path)
+		network_dir = CACHE_DIR
+		progress_changed.emit(1, 1, STATUS_CACHED)
+		return OK
 	var expected_bytes := int(pack.get("bytes", 0))
 	var err := await _download_to(page_url(zip_name), zip_path)
 	if err != OK:
@@ -67,7 +76,7 @@ func ensure_ready() -> Error:
 	if err != OK:
 		last_error = integrity_failure_text("", sha, actual_bytes, expected_bytes)
 		return err
-	progress_changed.emit(actual_bytes, actual_bytes, "正在校验棋力网络")
+	progress_changed.emit(actual_bytes, actual_bytes, STATUS_VERIFYING)
 	var actual_sha := await sha256_downloaded(zip_path)
 	if not pack_hash_matches(actual_sha, sha):
 		last_error = integrity_failure_text(actual_sha, sha, actual_bytes, expected_bytes)
@@ -76,7 +85,7 @@ func ensure_ready() -> Error:
 	if err != OK:
 		return err
 	write_stamp(CACHE_DIR, sha)
-	flush_web_fs()
+	discard_zip_after_extract(zip_path)
 	network_dir = CACHE_DIR
 	return OK
 
@@ -241,6 +250,36 @@ static func flush_web_fs() -> void:
 	JavaScriptBridge.force_fs_sync()
 
 
+static func discard_zip_after_extract(zip_path: String) -> void:
+	if zip_path.is_empty():
+		return
+	if FileAccess.file_exists(zip_path):
+		DirAccess.remove_absolute(zip_path)
+	flush_web_fs()
+
+
+## Ask the browser to keep IndexedDB / IDBFS. Never blocks loading; unsupported
+## or denied persist() is ignored. Must not be used to skip a real zip download.
+static func request_persistent_storage() -> bool:
+	if not OS.has_feature("web"):
+		return false
+	var script := (
+		"(function(){try{var s=navigator.storage;if(s&&s.persist){s.persist();}return true;}catch(e){return false;}})()"
+	)
+	var ok = JavaScriptBridge.eval(script, true)
+	return ok == true or str(ok).to_lower() in ["true", "1"]
+
+
+static func is_standalone_web_app() -> bool:
+	if not OS.has_feature("web"):
+		return false
+	var script := (
+		"(function(){try{return Boolean((window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||(navigator.standalone===true));}catch(e){return false;}})()"
+	)
+	var ok = JavaScriptBridge.eval(script, true)
+	return ok == true or str(ok).to_lower() in ["true", "1"]
+
+
 func sha256_downloaded(path: String) -> String:
 	var digest := file_sha256(path)
 	if not digest.is_empty() or not OS.has_feature("web"):
@@ -257,7 +296,7 @@ func _page_href() -> String:
 func _fetch_pack_info() -> Dictionary:
 	_http.download_file = ""
 	_http.accept_gzip = true
-	var err := await _request(page_url(PACK_JSON))
+	var err := await _request(page_url(PACK_JSON), STATUS_CHECKING)
 	if err != OK:
 		return {}
 	var parsed = JSON.parse_string(_result[3].get_string_from_utf8())
@@ -268,10 +307,10 @@ func _fetch_pack_info() -> Dictionary:
 
 
 func _download_to(url: String, dest: String) -> Error:
-	progress_changed.emit(0, 0, "正在下载棋力网络")
+	progress_changed.emit(0, 0, STATUS_DOWNLOADING)
 	_http.download_file = dest if uses_download_file() else ""
 	configure_zip_http(_http)
-	var err := await _request(url)
+	var err := await _request(url, STATUS_DOWNLOADING)
 	_http.download_file = ""
 	if err != OK:
 		return err
@@ -290,8 +329,9 @@ func _download_to(url: String, dest: String) -> Error:
 	return OK
 
 
-func _request(url: String) -> Error:
+func _request(url: String, status: String = STATUS_CHECKING) -> Error:
 	last_error = ""
+	_progress_status = status
 	_waiting = true
 	var err := _http.request(url)
 	if err != OK:

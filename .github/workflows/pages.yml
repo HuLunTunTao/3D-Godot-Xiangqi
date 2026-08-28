@@ -29,6 +29,9 @@ jobs:
       - name: Install pack tools
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends zstd python3
 
+      - name: Check NNUE service worker patcher
+        run: python3 tools/patch_web_service_worker.py --self-test
+
       - name: Cache Godot editor and templates
         id: cache-godot
         uses: actions/cache@v4
@@ -91,6 +94,7 @@ jobs:
           test -s build/web/index.html
           test -s "$(ls build/web/*.wasm | head -1)"
           test -s "$(ls build/web/*.pck | head -1)"
+          test -s build/web/index.service.worker.js
 
       - name: Pack NNUE sidecar
         run: |
@@ -105,7 +109,15 @@ jobs:
           if z.stat().st_size < 20 * 1024 * 1024:
               raise SystemExit("nnue-data.zip is too small")
           PY
-          touch build/web/.nojekyll
+          python3 tools/patch_web_service_worker.py --dir build/web
+          test -f build/web/.nojekyll || touch build/web/.nojekyll
+          mapfile -t sw_files < <(find build/web -maxdepth 1 \( -name '*.service.worker.js' -o -name '*service-worker.js' \) -print)
+          if [ ${#sw_files[@]} -eq 0 ]; then
+            echo "no service worker found after patch" >&2
+            exit 1
+          fi
+          grep -F 'nnue-pack.json' "${sw_files[@]}"
+          grep -F 'nnue-data.zip' "${sw_files[@]}"
 
       - uses: actions/upload-pages-artifact@v3
         with:
