@@ -201,7 +201,7 @@ static func integrity_failure_text(
 	if expected_bytes > 0 and actual_bytes != expected_bytes:
 		return "权重包校验失败（大小 %d，期望 %d）" % [actual_bytes, expected_bytes]
 	if actual_sha.is_empty():
-		return "权重包校验失败（无法计算 SHA-256，大小 %d，期望 %s）" % [actual_bytes, expected_sha]
+		return "权重包校验失败（无法计算 SHA-256，大小 %d，期望 sha256 %s）" % [actual_bytes, expected_sha]
 	return "权重包校验失败（sha256 %s，期望 %s，大小 %d）" % [actual_sha, expected_sha, actual_bytes]
 
 
@@ -216,10 +216,9 @@ static func uses_download_file() -> bool:
 
 
 static func persist_download(dest: String, body: PackedByteArray) -> Error:
-	if downloaded_byte_count(dest) > 0:
-		return OK
 	if body.is_empty():
-		return ERR_FILE_CORRUPT
+		# Desktop download_file already wrote dest; the signal body is empty.
+		return OK if downloaded_byte_count(dest) > 0 else ERR_FILE_CORRUPT
 	var out := FileAccess.open(dest, FileAccess.WRITE)
 	if out == null:
 		return ERR_CANT_CREATE

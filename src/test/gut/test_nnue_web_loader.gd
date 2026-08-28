@@ -67,7 +67,7 @@ func test_integrity_error_includes_expected_and_actual() -> void:
 	assert_string_contains(hash_err, "4")
 	var empty_hash := Loader.integrity_failure_text("", "bbb", 4, 4)
 	assert_string_contains(empty_hash, "无法计算 SHA-256")
-	assert_string_contains(empty_hash, "bbb")
+	assert_string_contains(empty_hash, "期望 sha256 bbb")
 
 
 func test_configure_zip_http_disables_gzip() -> void:
@@ -78,15 +78,17 @@ func test_configure_zip_http_disables_gzip() -> void:
 	http.free()
 
 
-func test_persist_download_writes_body_when_dest_missing() -> void:
+func test_persist_download_overwrites_stale_file_but_keeps_desktop_empty_body() -> void:
 	var path := "user://nnue_test_persist.bin"
 	if FileAccess.file_exists(path):
 		DirAccess.remove_absolute(path)
 	assert_eq(Loader.persist_download(path, PackedByteArray()), ERR_FILE_CORRUPT)
 	assert_eq(Loader.persist_download(path, PackedByteArray([9, 8, 7])), OK)
 	assert_eq(FileAccess.get_file_as_bytes(path), PackedByteArray([9, 8, 7]))
-	assert_eq(Loader.persist_download(path, PackedByteArray([1])), OK)
+	assert_eq(Loader.persist_download(path, PackedByteArray()), OK)
 	assert_eq(FileAccess.get_file_as_bytes(path), PackedByteArray([9, 8, 7]))
+	assert_eq(Loader.persist_download(path, PackedByteArray([1])), OK)
+	assert_eq(FileAccess.get_file_as_bytes(path), PackedByteArray([1]))
 	DirAccess.remove_absolute(path)
 
 
