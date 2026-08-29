@@ -14,6 +14,8 @@ signal search_progress(depth: int)
 signal game_ended(title: String, detail: String)
 signal game_state_changed(info: Dictionary)
 
+const STATUS_WARMING_SEARCH := "正在准备棋力…"
+
 enum State { SETUP, HUMAN_TURN, AI_THINKING, FINISHED }
 
 var engine = EngineScript.new()
@@ -50,6 +52,11 @@ func boot_engine(network_dir: String = "") -> Error:
 	status_changed.emit("请选择设置后开始对局", "setup")
 	_emit_game_state()
 	return OK
+
+
+## Web boot: allocate deep history on the engine instance search will reuse.
+func warm_search_tables(yield_cb: Callable = Callable()):
+	await engine.warm_search_tables(yield_cb)
 
 
 func _exit_tree() -> void:

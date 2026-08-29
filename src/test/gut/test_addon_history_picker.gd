@@ -78,6 +78,39 @@ func test_continuation_and_pawn_history_gravity() -> void:
 	)
 
 
+func test_ensure_deep_async_fills_then_ensure_deep_is_noop() -> void:
+	var h = Hist.new()
+	assert_true(h.continuation.is_empty())
+	assert_true(h.pawn_history.is_empty())
+	assert_true(h.unified_correction.is_empty())
+	var yields: Array = []
+	await h.ensure_deep_async(func():
+		yields.append(Time.get_ticks_msec())
+		if false:
+			await get_tree().process_frame
+	)
+	assert_true(h.deep_ready())
+	assert_eq(h.continuation.size(), h.continuation_len())
+	assert_eq(h.pawn_history.size(), h.pawn_history_len())
+	assert_eq(h.unified_correction.size(), h.unified_correction_len())
+	assert_eq(h.continuation[0], Hist.CONT_FILL)
+	assert_eq(h.pawn_history[0], Hist.PAWN_FILL)
+	assert_gte(yields.size(), 3, "should yield between the three deep arrays")
+	h.continuation[0] = 12345
+	h.pawn_history[0] = 22222
+	var n: int = yields.size()
+	h.ensure_deep()
+	assert_eq(h.continuation[0], 12345, "ensure_deep must not refill")
+	assert_eq(h.pawn_history[0], 22222)
+	await h.ensure_deep_async(func():
+		yields.append(1)
+		if false:
+			await get_tree().process_frame
+	)
+	assert_eq(yields.size(), n, "second ensure_deep_async is a no-op")
+	assert_eq(h.continuation[0], 12345)
+
+
 func test_quiet_score_uses_check_bonus_ordering() -> void:
 	## Giving check should sort ahead of a non-check quiet when histories are empty.
 	var pos = Pos.new()

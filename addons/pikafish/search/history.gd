@@ -67,22 +67,62 @@ func _init() -> void:
 	clear_shallow()
 
 
+func continuation_len() -> int:
+	return 2 * 2 * T.PIECE_NB * T.SQUARE_NB * T.PIECE_NB * T.SQUARE_NB
+
+
+func pawn_history_len() -> int:
+	return PAWN_HISTORY_BASE_SIZE * T.PIECE_NB * T.SQUARE_NB
+
+
+func unified_correction_len() -> int:
+	return CORRHIST_BASE_SIZE * T.COLOR_NB * 4
+
+
+func deep_ready() -> bool:
+	return (
+		not continuation.is_empty()
+		and not pawn_history.is_empty()
+		and not unified_correction.is_empty()
+	)
+
+
 ## Allocate Continuation / Pawn / UnifiedCorrection (once per History instance).
 func ensure_deep() -> void:
 	if continuation.is_empty():
-		var cont_len: int = (
-			2 * 2 * T.PIECE_NB * T.SQUARE_NB * T.PIECE_NB * T.SQUARE_NB
-		)
-		continuation.resize(cont_len)
+		continuation.resize(continuation_len())
 		continuation.fill(CONT_FILL)
 	if pawn_history.is_empty():
-		var pawn_len: int = PAWN_HISTORY_BASE_SIZE * T.PIECE_NB * T.SQUARE_NB
-		pawn_history.resize(pawn_len)
+		pawn_history.resize(pawn_history_len())
 		pawn_history.fill(PAWN_FILL)
 	if unified_correction.is_empty():
-		var uc_len: int = CORRHIST_BASE_SIZE * T.COLOR_NB * 4
-		unified_correction.resize(uc_len)
+		unified_correction.resize(unified_correction_len())
 		unified_correction.fill(UNIFIED_CORR_FILL)
+
+
+## Web/boot path: same fills as ensure_deep, but yield between the three arrays
+## so a ~80 MiB first-search hitch happens behind the loading overlay.
+## Already-allocated tables are a no-op (same skip as ensure_deep).
+func ensure_deep_async(yield_cb: Callable = Callable()):
+	if deep_ready():
+		return
+	if not yield_cb.is_valid():
+		ensure_deep()
+		return
+	# Let the loading overlay paint before the first native fill hitch.
+	await yield_cb.call()
+	if continuation.is_empty():
+		continuation.resize(continuation_len())
+		continuation.fill(CONT_FILL)
+		await yield_cb.call()
+	if pawn_history.is_empty():
+		pawn_history.resize(pawn_history_len())
+		pawn_history.fill(PAWN_FILL)
+		await yield_cb.call()
+	if unified_correction.is_empty():
+		unified_correction.resize(unified_correction_len())
+		unified_correction.fill(UNIFIED_CORR_FILL)
+		await yield_cb.call()
 
 
 func clear_shallow() -> void:

@@ -21,6 +21,9 @@ const NODE_ROOT := 2
 ## Stop-check cadence (avoid per-node Time.get_ticks_msec).
 ## Tighter than upstream-style 512–2048 so NNUE leaf latency still meets stop p95.
 const STOP_CHECK_MASK := 255
+## Cooperative (web) path: check stop / maybe yield every 64 nodes so a single
+## root-move tree cannot occupy a whole frame. Sync `_search` keeps STOP_CHECK_MASK.
+const COOP_STOP_CHECK_MASK := 63
 ## Upstream: Stack[MAX_PLY+10] with ss = stack+7 for (ss-7)..(ss+2).
 const SS_OFFSET := 7
 const SS_SIZE := 256  # T.MAX_PLY(246) + 10
@@ -38,13 +41,16 @@ var external_stop_cb: Callable
 ## Optional per-iteration info: Callable(Dictionary) after each completed ID step.
 var info_cb: Callable
 ## Optional cooperative yield for web/main-thread search. Blocking `search()`
-## never calls this. `search_async()` awaits it between ID depths and after
-## root moves when `yield_interval_ms` has elapsed. The callable may be a
+## never calls this. `search_async()` awaits it between ID depths, after root
+## moves, and inside `_search_async` / `_qsearch_async` at the coop stop-check
+## cadence when `yield_interval_ms` has elapsed. The callable may be a
 ## coroutine or return a Signal; a no-op/immediate callable is valid for tests.
 var yield_cb: Callable
-## Minimum wall time between non-forced root-move yields (tens of ms, not a full movetime).
-var yield_interval_ms: int = 40
+## Minimum wall time between non-forced yields (~one frame on the web coop path).
+var yield_interval_ms: int = 16
 var _last_yield_msec: int = 0
+## Yields requested from `_search_async` / `_qsearch_async` (not ID/root-move).
+var coop_inner_yields: int = 0
 var stop_flag := false
 var nodes: int = 0
 var seldepth: int = 0
@@ -92,6 +98,7 @@ func _ensure_helpers() -> void:
 
 func _init_search_stack() -> void:
 	_ensure_helpers()
+	# No-op when web boot / search_async already filled the same History instance.
 	history.ensure_deep()
 	var sent: int = history.sentinel_cont_base()
 	ss_cont_base.fill(sent)
@@ -193,8 +200,12 @@ func search(depth_limit: int, node_limit: int = 0) -> Dictionary:
 
 
 ## Main-thread cooperative search: one job / one TT.new_search, with awaits at
-## ID boundaries and (time-gated) root-move boundaries so the scene tree can run.
+## ID boundaries, (time-gated) root-move boundaries, and inside the recursive
+## PV/qsearch tree at the coop stop-check cadence so the scene tree can run.
 func search_async(depth_limit: int, node_limit: int = 0):
+	_ensure_helpers()
+	if yield_cb.is_valid() and history != null and not history.deep_ready():
+		await history.ensure_deep_async(yield_cb)
 	var st: Dictionary = _prepare_search(depth_limit, node_limit)
 	depth_limit = int(st["depth_limit"])
 	node_limit = int(st["node_limit"])
@@ -241,6 +252,7 @@ func _prepare_search(depth_limit: int, node_limit: int) -> Dictionary:
 	_from_complete_iteration = false
 	_incomplete = false
 	_stop_reason = ""
+	coop_inner_yields = 0
 	_last_yield_msec = Time.get_ticks_msec()
 	if evaluator == null:
 		evaluator = MaterialEvaluator.new()
@@ -444,7 +456,7 @@ func _search_root_async(depth: int, alpha: int, beta: int):
 	if bool(ctx.get("done", false)):
 		return int(ctx["value"])
 	for root_move in root_moves:
-		var step: Dictionary = _search_root_step(root_move, ctx)
+		var step: Dictionary = await _search_root_step_async(root_move, ctx)
 		if bool(step.get("return", false)):
 			return int(step["value"])
 		if not bool(step.get("skipped", false)):
@@ -471,28 +483,32 @@ func _search_root_open(depth: int, alpha: int, beta: int) -> Dictionary:
 	}
 
 
-func _search_root_step(root_move, ctx: Dictionary) -> Dictionary:
+func _search_root_begin_move(root_move, ctx: Dictionary) -> Dictionary:
 	var move: int = root_move.move()
 	if move == T.MOVE_NONE or not pos.legal(move):
 		return {"skipped": true}
-	var depth: int = int(ctx["depth"])
-	var alpha: int = int(ctx["alpha"])
-	var beta: int = int(ctx["beta"])
-	var alpha0: int = int(ctx["alpha0"])
 	ctx["move_count"] = int(ctx["move_count"]) + 1
-	var move_count: int = int(ctx["move_count"])
-	var before := nodes
-	_do_move_synced(move)
-	var value: int
-	if move_count == 1:
-		value = -_search(NODE_PV, depth - 1, -beta, -alpha, 1, false)
-	else:
-		value = -_search(NODE_NON_PV, depth - 1, -(alpha + 1), -alpha, 1, true)
-		if value > alpha and value < beta:
-			value = -_search(NODE_PV, depth - 1, -beta, -alpha, 1, false)
+	return {
+		"skipped": false,
+		"move": move,
+		"depth": int(ctx["depth"]),
+		"alpha": int(ctx["alpha"]),
+		"beta": int(ctx["beta"]),
+		"move_count": int(ctx["move_count"]),
+		"before": nodes,
+	}
+
+
+func _search_root_finish_move(
+	root_move, ctx: Dictionary, move: int, value: int, before: int
+) -> Dictionary:
 	var child_pv: PackedInt32Array = _pv_stack[1].duplicate()
 	_undo_move_synced(move)
 	var searched_nodes: int = maxi(0, nodes - before)
+	var alpha: int = int(ctx["alpha"])
+	var beta: int = int(ctx["beta"])
+	var alpha0: int = int(ctx["alpha0"])
+	var move_count: int = int(ctx["move_count"])
 	root_move.effort += searched_nodes
 	_root_effort_by_move[move] = int(_root_effort_by_move.get(move, 0)) + searched_nodes
 	if _should_stop():
@@ -512,6 +528,52 @@ func _search_root_step(root_move, ctx: Dictionary) -> Dictionary:
 	else:
 		root_move.score = -T.VALUE_INFINITE
 	return {}
+
+
+func _search_root_step(root_move, ctx: Dictionary) -> Dictionary:
+	var opened: Dictionary = _search_root_begin_move(root_move, ctx)
+	if bool(opened.get("skipped", false)):
+		return opened
+	var move: int = int(opened["move"])
+	var depth: int = int(opened["depth"])
+	var alpha: int = int(opened["alpha"])
+	var beta: int = int(opened["beta"])
+	var move_count: int = int(opened["move_count"])
+	_do_move_synced(move)
+	var value: int
+	if move_count == 1:
+		value = -_search(NODE_PV, depth - 1, -beta, -alpha, 1, false)
+	else:
+		value = -_search(NODE_NON_PV, depth - 1, -(alpha + 1), -alpha, 1, true)
+		if value > alpha and value < beta:
+			value = -_search(NODE_PV, depth - 1, -beta, -alpha, 1, false)
+	return _search_root_finish_move(root_move, ctx, move, value, int(opened["before"]))
+
+
+func _search_root_step_async(root_move, ctx: Dictionary):
+	## Coroutine counterpart of `_search_root_step`. Awaits `_search_async` so a
+	## single PV root-move tree can yield at the coop stop-check cadence.
+	var opened: Dictionary = _search_root_begin_move(root_move, ctx)
+	if bool(opened.get("skipped", false)):
+		return opened
+	var move: int = int(opened["move"])
+	var depth: int = int(opened["depth"])
+	var alpha: int = int(opened["alpha"])
+	var beta: int = int(opened["beta"])
+	var move_count: int = int(opened["move_count"])
+	_do_move_synced(move)
+	var child: int
+	var value: int
+	if move_count == 1:
+		child = await _search_async(NODE_PV, depth - 1, -beta, -alpha, 1, false)
+		value = -child
+	else:
+		child = await _search_async(NODE_NON_PV, depth - 1, -(alpha + 1), -alpha, 1, true)
+		value = -child
+		if value > alpha and value < beta:
+			child = await _search_async(NODE_PV, depth - 1, -beta, -alpha, 1, false)
+			value = -child
+	return _search_root_finish_move(root_move, ctx, move, value, int(opened["before"]))
 
 
 func _search_root_close(ctx: Dictionary) -> int:
@@ -644,6 +706,17 @@ func _maybe_check_stop() -> bool:
 	return false
 
 
+func _maybe_check_stop_coop() -> bool:
+	if stop_flag:
+		return true
+	if external_stop_cb.is_valid() and bool(external_stop_cb.call()):
+		stop_flag = true
+		return true
+	if (nodes & COOP_STOP_CHECK_MASK) == 0:
+		return _should_stop()
+	return false
+
+
 func _tt_probe() -> Dictionary:
 	if tt == null or pos == null:
 		return {"found": false, "move": T.MOVE_NONE, "value": T.VALUE_NONE, "eval": T.VALUE_NONE,
@@ -665,6 +738,8 @@ func _search(
 	cut_node: bool,
 	excluded_move: int = 0
 ) -> int:
+	## SYNC: never add `await` here. Blocking `search()` / GUT / desktop Thread
+	## must receive an int, not a GDScriptFunctionState. Web coop uses `_search_async`.
 	## Upstream: search.cpp template search<> — ProbCut + singular behind flags.
 	## excluded_move: T.MOVE_NONE (0) unless singular-extension exclusion.
 	var pv_node: bool = node_type != NODE_NON_PV
@@ -1003,6 +1078,358 @@ func _search(
 	return best_value
 
 
+func _search_async(
+	node_type: int,
+	depth: int,
+	alpha: int,
+	beta: int,
+	ply: int,
+	cut_node: bool,
+	excluded_move: int = 0
+):
+	## Coroutine copy of `_search`. Used only by `search_async`. Recursive
+	## calls await `_search_async` / `_qsearch_async`. Do not call from `search()`.
+	## Upstream: search.cpp template search<> — ProbCut + singular behind flags.
+	var pv_node: bool = node_type != NODE_NON_PV
+	var root_node: bool = node_type == NODE_ROOT
+	if ply >= 0 and ply < _pv_stack.size():
+		_pv_stack[ply] = PackedInt32Array()
+
+	if ply > seldepth:
+		seldepth = ply
+	if _maybe_check_stop_coop():
+		return alpha
+	if (nodes & COOP_STOP_CHECK_MASK) == 0:
+		coop_inner_yields += 1
+		await _maybe_yield(false)
+
+	# Upstream Step 2 (search.cpp ~720–738): rule_judge only off-root.
+	# claimed → return (DRAW via value_draw); soft → clamp α/β, do not return mate.
+	if not root_node:
+		var rj: Dictionary = pos.rule_judge(ply)
+		var rj_value: int = int(rj.get("value", T.VALUE_NONE))
+		if rj.get("claimed", false):
+			return _value_draw() if rj_value == T.VALUE_DRAW else rj_value
+		elif rj_value != T.VALUE_NONE:
+			if rj_value > T.VALUE_DRAW:
+				alpha = maxi(alpha, T.VALUE_DRAW - 1)
+			else:
+				beta = mini(beta, T.VALUE_DRAW + 1)
+
+	if depth <= 0:
+		return await _qsearch_async(pv_node, alpha, beta, ply)
+
+	depth = mini(depth, T.MAX_PLY - 1)
+
+	# Mate distance pruning (upstream Step 3).
+	if not root_node:
+		alpha = maxi(T.mated_in(ply), alpha)
+		beta = mini(T.mate_in(ply + 1), beta)
+		if alpha >= beta:
+			return alpha
+
+	var tt_hit: Dictionary = _tt_probe()
+	var tt_move: int = int(tt_hit.get("move", T.MOVE_NONE)) if tt_hit.get("found", false) else T.MOVE_NONE
+	var tt_value: int = T.VALUE_NONE
+	var tt_depth: int = T.DEPTH_NONE
+	var tt_bound: int = T.BOUND_NONE
+	var tt_eval: int = T.VALUE_NONE
+	var tt_pv: bool = pv_node
+	var write_index: int = int(tt_hit.get("write_index", -1))
+	if tt_hit.get("found", false):
+		tt_value = tt.value_from_tt(int(tt_hit["value"]), ply, pos.rule60_count())
+		tt_depth = int(tt_hit["depth"])
+		tt_bound = int(tt_hit["bound"])
+		tt_eval = int(tt_hit["eval"])
+		tt_pv = pv_node or bool(tt_hit.get("is_pv", false))
+
+	# NonPV TT cutoff (simplified; no next-position verification yet).
+	if (
+		not pv_node
+		and excluded_move == T.MOVE_NONE
+		and tt_hit.get("found", false)
+		and tt_depth > depth - (1 if tt_value <= beta else 0)
+		and T.is_valid_value(tt_value)
+		and (tt_bound & (T.BOUND_LOWER if tt_value >= beta else T.BOUND_UPPER)) != 0
+		and pos.rule60_count() < 116
+	):
+		return tt_value
+
+	var in_check: bool = false
+	var chk: Array = pos.checkers()
+	in_check = chk[0] != 0 or chk[1] != 0
+	ss_in_check[_ss(ply)] = 1 if in_check else 0
+
+	var eval: int = T.VALUE_NONE
+	var improving := false
+	if in_check:
+		eval = T.VALUE_NONE
+	elif tt_hit.get("found", false) and tt_eval != T.VALUE_NONE:
+		eval = tt_eval
+		if T.is_valid_value(tt_value) and (
+			(tt_bound & T.BOUND_LOWER) != 0 and tt_value > eval
+			or (tt_bound & T.BOUND_UPPER) != 0 and tt_value < eval
+		):
+			eval = tt_value
+	else:
+		eval = _eval()
+		if tt != null and write_index >= 0:
+			tt.write(
+				write_index, pos.key(), T.VALUE_NONE, tt_pv, T.BOUND_NONE,
+				T.DEPTH_UNSEARCHED, T.MOVE_NONE, eval
+			)
+
+	# Razoring (flagged).
+	if enable_razoring and not pv_node and not in_check and eval < alpha - 1370 - 244 * depth * depth:
+		return await _qsearch_async(false, alpha, beta, ply)
+
+	# Futility pruning: child node (flagged, simplified margin).
+	if (
+		enable_futility
+		and not tt_pv
+		and not in_check
+		and depth < 15
+		and eval >= beta
+		and not T.is_loss(beta)
+		and not T.is_win(eval)
+	):
+		var futility_mult: int = mini(40 + depth * 4, 129)
+		var futility_margin: int = futility_mult * depth
+		if eval - futility_margin >= beta:
+			return (716 * beta + 308 * eval) / 1024
+
+	# Null-move pruning (flagged).
+	if (
+		enable_null_move
+		and cut_node
+		and not in_check
+		and excluded_move == T.MOVE_NONE
+		and eval != T.VALUE_NONE
+		and eval >= beta - 8 * depth + 187
+		and pos.major_material(pos.side_to_move) > 0
+		and ply >= 1
+		and beta >= -2000
+	):
+		var R: int = 8 + depth / 3 + maxi((eval - beta) / 256, 0)
+		_do_null_synced()
+		ss_current_move[_ss(ply)] = T.MOVE_NULL
+		ss_cont_base[_ss(ply)] = history.sentinel_cont_base()
+		var null_value: int = -(await _search_async(
+			NODE_NON_PV, depth - R, -beta, -beta + 1, ply + 1, false, T.MOVE_NONE
+		))
+		_undo_null_synced()
+		ss_current_move[_ss(ply)] = T.MOVE_NONE
+		if null_value >= beta and not T.is_win(null_value):
+			return null_value
+
+	# Without staticEval stack: improving ≈ eval >= beta (upstream uses prior ply).
+	improving = (not in_check and eval != T.VALUE_NONE and eval >= beta)
+
+	# Step 10. ProbCut (flagged) — Upstream: search.cpp ProbCut.
+	if (
+		enable_probcut
+		and not in_check
+		and depth >= 3
+		and not T.is_decisive(beta)
+		and not (T.is_valid_value(tt_value) and tt_value < beta + 251 - 66 * (1 if improving else 0))
+	):
+		var prob_cut_beta: int = beta + 251 - 66 * (1 if improving else 0)
+		var pc_picker = MP.new()
+		var pc_thr: int = prob_cut_beta - eval if eval != T.VALUE_NONE else prob_cut_beta
+		pc_picker.init_probcut(pos, tt_move, pc_thr, history)
+		var prob_cut_depth: int = depth - (5 if improving else 3)
+		while true:
+			var pcm: int = pc_picker.next_move()
+			if pcm == T.MOVE_NONE:
+				break
+			if pcm == excluded_move or not pos.legal(pcm):
+				continue
+			if not pos.capture(pcm):
+				continue
+			_do_move_synced(pcm)
+			var pc_value: int = -(await _qsearch_async(false, -prob_cut_beta, -prob_cut_beta + 1, ply + 1))
+			if pc_value >= prob_cut_beta and prob_cut_depth > 0:
+				pc_value = -(await _search_async(
+					NODE_NON_PV, prob_cut_depth, -prob_cut_beta, -prob_cut_beta + 1,
+					ply + 1, not cut_node, T.MOVE_NONE
+				))
+			_undo_move_synced(pcm)
+			if pc_value >= prob_cut_beta:
+				if tt != null and write_index >= 0 and excluded_move == T.MOVE_NONE:
+					tt.write(
+						write_index, pos.key(), tt.value_to_tt(pc_value, ply), tt_pv,
+						T.BOUND_LOWER, prob_cut_depth + 1, pcm,
+						eval if eval != T.VALUE_NONE else T.VALUE_NONE
+					)
+				if not T.is_decisive(pc_value):
+					return pc_value - (prob_cut_beta - beta)
+
+	# Step 11. Small ProbCut idea (flagged).
+	if enable_probcut and not T.is_decisive(beta) and T.is_valid_value(tt_value):
+		var small_pc_beta: int = beta + 470
+		if (
+			(tt_bound & T.BOUND_LOWER) != 0
+			and tt_depth >= depth - 4
+			and tt_value >= small_pc_beta
+			and not T.is_decisive(tt_value)
+		):
+			return small_pc_beta
+
+	var picker = MP.new()
+	picker.init_main(pos, tt_move, depth, history, ply, _cont_hist_for_picker(ply))
+
+	var best_value: int = -T.VALUE_INFINITE
+	var local_best := T.MOVE_NONE
+	var move_count := 0
+	var quiets_searched := PackedInt32Array()
+	var captures_searched := PackedInt32Array()
+	var alpha0: int = alpha
+
+	while true:
+		var m: int = picker.next_move()
+		if m == T.MOVE_NONE:
+			break
+		if m == excluded_move:
+			continue
+		if not pos.legal(m):
+			continue
+		move_count += 1
+		var is_cap: bool = pos.capture(m)
+		var root_nodes_before: int = nodes if root_node else 0
+		var moved_pc: int = pos.moved_piece(m)
+		var captured_pt: int = T.type_of(pos.piece_on(T.to_sq(m))) if is_cap else T.NO_PIECE_TYPE
+		var new_depth: int = depth - 1
+		var extension: int = 0
+		var value: int
+
+		# Step 14. Singular extension (flagged) — Upstream: search.cpp singular.
+		if (
+			enable_singular
+			and not root_node
+			and m == tt_move
+			and excluded_move == T.MOVE_NONE
+			and depth >= 5 + (1 if tt_pv else 0)
+			and T.is_valid_value(tt_value)
+			and not T.is_decisive(tt_value)
+			and (tt_bound & T.BOUND_LOWER) != 0
+			and tt_depth >= depth - 3
+		):
+			var singular_beta: int = (
+				tt_value - (44 + 72 * (1 if tt_pv and not pv_node else 0)) * depth / 69
+			)
+			var singular_depth: int = int(new_depth / 2)
+			var se_value: int = await _search_async(
+				NODE_NON_PV, singular_depth, singular_beta - 1, singular_beta,
+				ply, cut_node, m
+			)
+			if se_value < singular_beta:
+				extension = 1
+				depth += 1
+			elif se_value >= beta and not T.is_decisive(se_value):
+				return se_value
+			elif tt_value >= beta or cut_node:
+				extension = -3
+
+		new_depth += extension
+		# Upstream Worker::do_move — set continuationHistory before recurse.
+		ss_current_move[_ss(ply)] = m
+		ss_cont_base[_ss(ply)] = history.cont_base(in_check, 1 if is_cap else 0, moved_pc, T.to_sq(m))
+		_do_move_synced(m)
+
+		# PVS: first move full window; later moves null-window (+ LMR when flagged).
+		if pv_node and move_count == 1:
+			value = -(await _search_async(NODE_PV, new_depth, -beta, -alpha, ply + 1, false, T.MOVE_NONE))
+		else:
+			var d: int = new_depth
+			var did_lmr := false
+			if (
+				enable_lmr
+				and depth >= 2
+				and move_count > 1 + (1 if root_node else 0)
+				and not is_cap
+			):
+				var r: int = reductions.reduction(improving, depth, move_count, beta - alpha0)
+				r += 855
+				d = maxi(1, mini(new_depth - r / 1024, new_depth + 2))
+				did_lmr = d < new_depth
+			value = -(await _search_async(NODE_NON_PV, d, -(alpha + 1), -alpha, ply + 1, true, T.MOVE_NONE))
+			if did_lmr and value > alpha:
+				value = -(await _search_async(
+					NODE_NON_PV, new_depth, -(alpha + 1), -alpha, ply + 1, not cut_node, T.MOVE_NONE
+				))
+			if pv_node and value > alpha:
+				value = -(await _search_async(NODE_PV, new_depth, -beta, -alpha, ply + 1, false, T.MOVE_NONE))
+
+		_undo_move_synced(m)
+		var child_pv: PackedInt32Array = _pv_stack[ply + 1].duplicate() if ply + 1 < _pv_stack.size() else PackedInt32Array()
+		ss_current_move[_ss(ply)] = T.MOVE_NONE
+		if root_node:
+			_root_effort_by_move[m] = int(_root_effort_by_move.get(m, 0)) + maxi(0, nodes - root_nodes_before)
+
+		if _should_stop():
+			return alpha
+
+		if value > best_value:
+			best_value = value
+			local_best = m
+			if value > alpha:
+				alpha = value
+				if pv_node and ply < _pv_stack.size():
+					var line := PackedInt32Array([m])
+					for child_move in child_pv:
+						line.append(child_move)
+					_pv_stack[ply] = line
+				if root_node or ply == 0:
+					if root_node and best_move != T.MOVE_NONE and best_move != m:
+						_root_best_move_changes += 1
+					best_move = m
+					pv = PackedInt32Array([m])
+				if alpha >= beta:
+					_update_histories_on_cutoff(
+						m, is_cap, moved_pc, captured_pt, depth, ply,
+						quiets_searched, captures_searched
+					)
+					break
+		if is_cap:
+			captures_searched.append(m)
+		else:
+			quiets_searched.append(m)
+
+	if move_count == 0:
+		# Upstream: if excludedMove, return alpha (fail-low softbound for singular).
+		if excluded_move != T.MOVE_NONE:
+			return alpha
+		if in_check:
+			return T.mated_in(ply)
+		return T.VALUE_DRAW
+
+	if root_node and local_best != T.MOVE_NONE and best_move == T.MOVE_NONE:
+		best_move = local_best
+
+	# TT write
+	if tt != null and write_index >= 0 and excluded_move == T.MOVE_NONE:
+		var bound: int
+		if best_value >= beta:
+			bound = T.BOUND_LOWER
+		elif pv_node and local_best != T.MOVE_NONE:
+			bound = T.BOUND_EXACT
+		else:
+			bound = T.BOUND_UPPER
+		tt.write(
+			write_index,
+			pos.key(),
+			tt.value_to_tt(best_value, ply),
+			tt_pv,
+			bound,
+			depth,
+			local_best,
+			eval if eval != T.VALUE_NONE else T.VALUE_NONE
+		)
+
+	return best_value
+
+
+
 func _update_histories_on_cutoff(
 	best: int,
 	is_cap: bool,
@@ -1165,6 +1592,136 @@ func _qsearch(pv_node: bool, alpha: int, beta: int, ply: int) -> int:
 			bound, T.DEPTH_QS, local_best, unadjusted_static_eval
 		)
 	return best_value
+
+
+func _qsearch_async(pv_node: bool, alpha: int, beta: int, ply: int):
+	## Coroutine copy of `_qsearch`. Used only by `_search_async` / coop root.
+	if ply >= 0 and ply < _pv_stack.size():
+		_pv_stack[ply] = PackedInt32Array()
+	if ply > seldepth:
+		seldepth = ply
+	if ply > 32:
+		return _eval()
+	if _maybe_check_stop_coop():
+		return alpha
+	if (nodes & COOP_STOP_CHECK_MASK) == 0:
+		coop_inner_yields += 1
+		await _maybe_yield(false)
+
+	# Upstream qsearch Step 2 (search.cpp ~1567–1586): claimed return; soft clamp + cutoff.
+	var rj: Dictionary = pos.rule_judge(ply)
+	var rj_value: int = int(rj.get("value", T.VALUE_NONE))
+	if rj.get("claimed", false):
+		return rj_value
+	elif rj_value != T.VALUE_NONE:
+		if rj_value > T.VALUE_DRAW:
+			alpha = maxi(alpha, T.VALUE_DRAW)
+		else:
+			beta = mini(beta, T.VALUE_DRAW)
+		if alpha >= beta:
+			return alpha
+
+	# Upstream qsearch Step 3–4 (search.cpp): TT cutoff, TT eval/value stand-pat, softbound.
+	var tt_hit: Dictionary = _tt_probe()
+	var tt_move := T.MOVE_NONE
+	var tt_value: int = T.VALUE_NONE
+	var tt_eval: int = T.VALUE_NONE
+	var tt_depth: int = T.DEPTH_NONE
+	var tt_bound: int = T.BOUND_NONE
+	var write_index: int = int(tt_hit.get("write_index", -1))
+	var found: bool = bool(tt_hit.get("found", false))
+	if found:
+		tt_move = int(tt_hit.get("move", T.MOVE_NONE))
+		tt_value = tt.value_from_tt(int(tt_hit["value"]), ply, pos.rule60_count())
+		tt_eval = int(tt_hit["eval"])
+		tt_depth = int(tt_hit["depth"])
+		tt_bound = int(tt_hit["bound"])
+		if (
+			not pv_node
+			and tt_depth >= T.DEPTH_QS
+			and T.is_valid_value(tt_value)
+			and (tt_bound & (T.BOUND_LOWER if tt_value >= beta else T.BOUND_UPPER)) != 0
+		):
+			return tt_value
+
+	var chk: Array = pos.checkers()
+	var in_check: bool = chk[0] != 0 or chk[1] != 0
+	var unadjusted_static_eval: int = T.VALUE_NONE
+	var best_value: int
+	# GDS-DIVERGENCE: SEMANTIC — correction history skipped in qsearch (S2 secondary gap).
+	if in_check:
+		best_value = -T.VALUE_INFINITE
+	else:
+		if found:
+			unadjusted_static_eval = tt_eval
+			if not T.is_valid_value(unadjusted_static_eval):
+				unadjusted_static_eval = _eval()
+			best_value = unadjusted_static_eval
+			# ttValue can be used as a better position evaluation
+			if (
+				T.is_valid_value(tt_value)
+				and not T.is_decisive(tt_value)
+				and (tt_bound & (T.BOUND_LOWER if tt_value > best_value else T.BOUND_UPPER)) != 0
+			):
+				best_value = tt_value
+		else:
+			unadjusted_static_eval = _eval()
+			best_value = unadjusted_static_eval
+
+		# Stand pat. Softbound then optional TT save when !ttHit.
+		if best_value >= beta:
+			if not T.is_decisive(best_value):
+				best_value = (467 * best_value + 557 * beta) / 1024
+			if not found and tt != null and write_index >= 0:
+				tt.write(
+					write_index, pos.key(), T.VALUE_NONE, false,
+					T.BOUND_LOWER, T.DEPTH_UNSEARCHED, T.MOVE_NONE, unadjusted_static_eval
+				)
+			return best_value
+
+		if best_value > alpha:
+			alpha = best_value
+
+	var picker = MP.new()
+	picker.init_main(pos, tt_move, 0, history, ply, _cont_hist_for_picker(ply))
+	var local_best := T.MOVE_NONE
+	while true:
+		var m: int = picker.next_move()
+		if m == T.MOVE_NONE:
+			break
+		if not pos.legal(m):
+			continue
+		# Quiescence: prefer captures; still allow checks via picker stages.
+		_do_move_synced(m)
+		var score: int = -(await _qsearch_async(pv_node, -beta, -alpha, ply + 1))
+		_undo_move_synced(m)
+		var child_pv: PackedInt32Array = _pv_stack[ply + 1].duplicate() if ply + 1 < _pv_stack.size() else PackedInt32Array()
+		if score > best_value:
+			best_value = score
+			local_best = m
+		if score >= beta:
+			if tt != null and write_index >= 0:
+				tt.write(
+					write_index, pos.key(), tt.value_to_tt(score, ply), pv_node,
+					T.BOUND_LOWER, T.DEPTH_QS, m, unadjusted_static_eval
+				)
+			return score
+		if score > alpha:
+			alpha = score
+			if pv_node and ply < _pv_stack.size():
+				var line := PackedInt32Array([m])
+				for child_move in child_pv:
+					line.append(child_move)
+				_pv_stack[ply] = line
+
+	if tt != null and write_index >= 0:
+		var bound: int = T.BOUND_EXACT if pv_node and local_best != T.MOVE_NONE else T.BOUND_UPPER
+		tt.write(
+			write_index, pos.key(), tt.value_to_tt(best_value, ply), pv_node,
+			bound, T.DEPTH_QS, local_best, unadjusted_static_eval
+		)
+	return best_value
+
 
 
 func _eval() -> int:

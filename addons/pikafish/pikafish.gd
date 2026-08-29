@@ -443,7 +443,8 @@ func start_search(limits) -> Error:
 	## Also accepts wtime/btime/winc/binc/movestogo/move_overhead_ms, depth,
 	## nodes, infinite, ponder. Clock controls use dynamic soft/hard time bounds.
 	## Pass sync:true only for tests/tools that must block the caller.
-	## Web (single-thread export) uses a main-thread coroutine with frame yields;
+	## Web (single-thread export) uses a main-thread coroutine with frame yields
+	## inside iterative deepening, root moves, and the recursive search tree;
 	## desktop/editor keep a background Thread. Do not pass sync:true from the game.
 	if not _initialized:
 		return ERR_UNCONFIGURED
@@ -667,6 +668,8 @@ func _run_search_job_async(packed: Dictionary):
 		worker.yield_cb = cb
 	else:
 		worker.yield_cb = _default_coop_yield
+	# One frame so a single root-move tree cannot freeze the web main thread.
+	worker.yield_interval_ms = 16
 	var raw: Dictionary = await worker.search_async(
 		int(packed.get("depth", 4)), int(packed.get("nodes", 0))
 	)
@@ -677,6 +680,20 @@ func _default_coop_yield() -> void:
 	var tree := Engine.get_main_loop() as SceneTree
 	if tree != null:
 		await tree.process_frame
+
+
+## Fill Continuation / Pawn / UnifiedCorrection on the History instance the
+## worker will reuse. Web boot calls this while the loading overlay is up so
+## the first AI think does not hitch on ~80 MiB of PackedInt32 fill.
+## Subsequent ensure_deep() / start_search are a no-op for those arrays.
+func warm_search_tables(yield_cb: Callable = Callable()):
+	if not _initialized:
+		return ERR_UNCONFIGURED
+	if _history == null:
+		_history = preload("res://addons/pikafish/search/history.gd").new()
+	var cb: Callable = yield_cb if yield_cb.is_valid() else _default_coop_yield
+	await _history.ensure_deep_async(cb)
+	return OK
 
 
 func _free_coop_pump() -> void:
