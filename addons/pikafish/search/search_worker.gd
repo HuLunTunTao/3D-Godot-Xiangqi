@@ -37,6 +37,14 @@ var evaluator = null  ## PikafishSearchEvaluator
 var external_stop_cb: Callable
 ## Optional per-iteration info: Callable(Dictionary) after each completed ID step.
 var info_cb: Callable
+## Optional cooperative yield for web/main-thread search. Blocking `search()`
+## never calls this. `search_async()` awaits it between ID depths and after
+## root moves when `yield_interval_ms` has elapsed. The callable may be a
+## coroutine or return a Signal; a no-op/immediate callable is valid for tests.
+var yield_cb: Callable
+## Minimum wall time between non-forced root-move yields (tens of ms, not a full movetime).
+var yield_interval_ms: int = 40
+var _last_yield_msec: int = 0
 var stop_flag := false
 var nodes: int = 0
 var seldepth: int = 0
@@ -154,6 +162,71 @@ func _undo_null_synced() -> void:
 
 
 func search(depth_limit: int, node_limit: int = 0) -> Dictionary:
+	var st: Dictionary = _prepare_search(depth_limit, node_limit)
+	depth_limit = int(st["depth_limit"])
+	node_limit = int(st["node_limit"])
+	for depth in range(1, depth_limit + 1):
+		if _id_should_abort_before_depth():
+			break
+		var snap: Dictionary = _id_begin_depth(st)
+		_id_setup_window(snap)
+		if bool(snap["use_aspiration"]):
+			while true:
+				if _should_stop():
+					break
+				_set_root_optimism(int(snap["root_average"]))
+				snap["score"] = _search_root(depth, int(snap["alpha"]), int(snap["beta"]))
+				_stable_sort_root_moves()
+				if _should_stop():
+					break
+				if not _id_aspiration_widen(snap):
+					break
+		else:
+			_set_root_optimism(int(st["avg_score"]))
+			snap["score"] = _search_root(depth, int(snap["alpha"]), int(snap["beta"]))
+			_stable_sort_root_moves()
+		if _id_restore_if_stopped(snap):
+			break
+		if _id_commit_depth(depth, int(snap["score"]), st, node_limit):
+			break
+	return _finish_search_result()
+
+
+## Main-thread cooperative search: one job / one TT.new_search, with awaits at
+## ID boundaries and (time-gated) root-move boundaries so the scene tree can run.
+func search_async(depth_limit: int, node_limit: int = 0):
+	var st: Dictionary = _prepare_search(depth_limit, node_limit)
+	depth_limit = int(st["depth_limit"])
+	node_limit = int(st["node_limit"])
+	for depth in range(1, depth_limit + 1):
+		await _maybe_yield(true)
+		if _id_should_abort_before_depth():
+			break
+		var snap: Dictionary = _id_begin_depth(st)
+		_id_setup_window(snap)
+		if bool(snap["use_aspiration"]):
+			while true:
+				if _should_stop():
+					break
+				_set_root_optimism(int(snap["root_average"]))
+				snap["score"] = await _search_root_async(depth, int(snap["alpha"]), int(snap["beta"]))
+				_stable_sort_root_moves()
+				if _should_stop():
+					break
+				if not _id_aspiration_widen(snap):
+					break
+		else:
+			_set_root_optimism(int(st["avg_score"]))
+			snap["score"] = await _search_root_async(depth, int(snap["alpha"]), int(snap["beta"]))
+			_stable_sort_root_moves()
+		if _id_restore_if_stopped(snap):
+			break
+		if _id_commit_depth(depth, int(snap["score"]), st, node_limit):
+			break
+	return _finish_search_result()
+
+
+func _prepare_search(depth_limit: int, node_limit: int) -> Dictionary:
 	stop_flag = false
 	nodes = 0
 	seldepth = 0
@@ -168,6 +241,7 @@ func search(depth_limit: int, node_limit: int = 0) -> Dictionary:
 	_from_complete_iteration = false
 	_incomplete = false
 	_stop_reason = ""
+	_last_yield_msec = Time.get_ticks_msec()
 	if evaluator == null:
 		evaluator = MaterialEvaluator.new()
 	_init_search_stack()
@@ -183,123 +257,162 @@ func search(depth_limit: int, node_limit: int = 0) -> Dictionary:
 	if depth_limit <= 0:
 		depth_limit = T.MAX_PLY - 1
 	requested_depth = depth_limit
-
 	var avg_score: int = T.VALUE_ZERO
 	var iter_values := PackedInt32Array([T.VALUE_ZERO, T.VALUE_ZERO, T.VALUE_ZERO, T.VALUE_ZERO])
-	var iter_index := 0
-	var previous_iteration_best: int = T.MOVE_NONE
-	var last_best_move_depth := 0
-	var total_best_move_changes := 0.0
 	var previous_search_average := T.VALUE_ZERO
 	if time_manager != null and time_manager._state != null and time_manager._state.has_previous_score:
 		avg_score = time_manager._state.best_previous_score
 		previous_search_average = time_manager._state.best_previous_average_score
 		iter_values.fill(avg_score)
 	_root_effort_by_move.clear()
-	for depth in range(1, depth_limit + 1):
-		# Soft stop: do not begin a deeper iteration past optimum.
-		if time_manager != null and time_manager.past_optimum() and completed_depth >= 1:
-			if _stop_reason.is_empty():
-				_stop_reason = "movetime" if time_manager.movetime_ms > 0 else "time"
-			break
-		if _should_stop():
-			break
-		total_best_move_changes *= 0.5
-		_root_best_move_changes = 0
-		for root_move in root_moves:
-			root_move.begin_iteration(true)
-		# Snapshot working root best before this iteration; restore if aborted mid-ID.
-		var pre_best: int = best_move
-		var pre_score: int = best_score
-		var pre_pv: PackedInt32Array = pv.duplicate()
-		var alpha: int = -T.VALUE_INFINITE
-		var beta: int = T.VALUE_INFINITE
-		var delta: int = T.VALUE_INFINITE
-		var score: int = T.VALUE_NONE
+	return {
+		"depth_limit": depth_limit,
+		"node_limit": node_limit,
+		"avg_score": avg_score,
+		"iter_values": iter_values,
+		"iter_index": 0,
+		"previous_iteration_best": T.MOVE_NONE,
+		"last_best_move_depth": 0,
+		"total_best_move_changes": 0.0,
+		"previous_search_average": previous_search_average,
+	}
 
-		if enable_aspiration and not root_moves.is_empty():
-			# Upstream iterative deepening: always set alpha/beta/optimism from
-			# RootMove averageScore / meanSquaredScore (including -VALUE_INFINITE
-			# / -VALUE_INFINITE^2 on depth 1). No depth>=4 gate; no avg fallback.
-			var root_average: int = int(root_moves[0].average_score)
-			var root_variance: int = int(root_moves[0].mean_squared_score)
-			delta = 10 + absi(root_variance) / 39605
-			alpha = maxi(root_average - delta, -T.VALUE_INFINITE)
-			beta = mini(root_average + delta, T.VALUE_INFINITE)
-			reductions.set_root_delta(beta - alpha)
-			while true:
-				if _should_stop():
-					break
-				_set_root_optimism(root_average)
-				score = _search_root(depth, alpha, beta)
-				_stable_sort_root_moves()
-				if _should_stop():
-					break
-				if score <= alpha:
-					beta = alpha
-					alpha = maxi(score - delta, -T.VALUE_INFINITE)
-					delta += 44 * delta / 128
-					reductions.set_root_delta(maxi(beta - alpha, 1))
-				elif score >= beta:
-					alpha = maxi(beta - delta, alpha)
-					beta = mini(score + delta, T.VALUE_INFINITE)
-					delta += 44 * delta / 128
-					reductions.set_root_delta(maxi(beta - alpha, 1))
-				else:
-					break
-		else:
-			reductions.set_root_delta(T.VALUE_INFINITE)
-			_set_root_optimism(avg_score)
-			score = _search_root(depth, alpha, beta)
-			_stable_sort_root_moves()
 
-		if _should_stop():
-			# Discard mid-iteration root updates; keep last complete iteration.
-			best_move = _stable_best if _stable_best != T.MOVE_NONE else pre_best
-			best_score = _stable_score if _stable_best != T.MOVE_NONE else pre_score
-			pv = _stable_pv if _stable_best != T.MOVE_NONE else pre_pv
-			break
+func _id_should_abort_before_depth() -> bool:
+	# Soft stop: do not begin a deeper iteration past optimum.
+	if time_manager != null and time_manager.past_optimum() and completed_depth >= 1:
+		if _stop_reason.is_empty():
+			_stop_reason = "movetime" if time_manager.movetime_ms > 0 else "time"
+		return true
+	return _should_stop()
 
-		if score != T.VALUE_NONE:
-			best_score = score
-			avg_score = score
-			if best_move != previous_iteration_best:
-				last_best_move_depth = depth
-				previous_iteration_best = best_move
-			total_best_move_changes += float(_root_best_move_changes)
-			var previous_iter_value: int = iter_values[iter_index]
-			iter_values[iter_index] = score
-			iter_index = (iter_index + 1) & 3
-			_commit_iteration(depth)
-			_emit_iteration_info(depth)
-			if time_manager != null and time_manager.use_time_management():
-				time_manager.update_after_iteration({
-					"best_previous_average": previous_search_average,
-					"best_value": score,
-					"iter_value": previous_iter_value,
-					"depth": depth,
-					"last_best_move_depth": last_best_move_depth,
-					"best_move_changes": total_best_move_changes,
-					"best_effort_nodes": int(root_moves[0].effort) if not root_moves.is_empty() else 0,
-					"nodes": nodes,
-					"threads": 1,
-				})
 
-		if node_limit > 0 and nodes >= node_limit:
-			if _stop_reason.is_empty():
-				_stop_reason = "nodes"
-			break
-		# Soft stop after completing this iteration.
-		if time_manager != null and time_manager.past_optimum() and depth >= 1:
-			if _stop_reason.is_empty():
-				_stop_reason = "movetime" if time_manager.movetime_ms > 0 else "time"
-			break
+func _id_begin_depth(st: Dictionary) -> Dictionary:
+	st["total_best_move_changes"] = float(st["total_best_move_changes"]) * 0.5
+	_root_best_move_changes = 0
+	for root_move in root_moves:
+		root_move.begin_iteration(true)
+	# Snapshot working root best before this iteration; restore if aborted mid-ID.
+	return {
+		"pre_best": best_move,
+		"pre_score": best_score,
+		"pre_pv": pv.duplicate(),
+		"alpha": -T.VALUE_INFINITE,
+		"beta": T.VALUE_INFINITE,
+		"delta": T.VALUE_INFINITE,
+		"score": T.VALUE_NONE,
+		"use_aspiration": false,
+		"root_average": 0,
+	}
 
+
+func _id_setup_window(snap: Dictionary) -> void:
+	if enable_aspiration and not root_moves.is_empty():
+		# Upstream iterative deepening: always set alpha/beta/optimism from
+		# RootMove averageScore / meanSquaredScore (including -VALUE_INFINITE
+		# / -VALUE_INFINITE^2 on depth 1). No depth>=4 gate; no avg fallback.
+		var root_average: int = int(root_moves[0].average_score)
+		var root_variance: int = int(root_moves[0].mean_squared_score)
+		var delta: int = 10 + absi(root_variance) / 39605
+		snap["root_average"] = root_average
+		snap["delta"] = delta
+		snap["alpha"] = maxi(root_average - delta, -T.VALUE_INFINITE)
+		snap["beta"] = mini(root_average + delta, T.VALUE_INFINITE)
+		snap["use_aspiration"] = true
+		reductions.set_root_delta(int(snap["beta"]) - int(snap["alpha"]))
+	else:
+		snap["use_aspiration"] = false
+		snap["delta"] = T.VALUE_INFINITE
+		reductions.set_root_delta(T.VALUE_INFINITE)
+
+
+func _id_aspiration_widen(snap: Dictionary) -> bool:
+	var score: int = int(snap["score"])
+	var alpha: int = int(snap["alpha"])
+	var beta: int = int(snap["beta"])
+	var delta: int = int(snap["delta"])
+	if score <= alpha:
+		snap["beta"] = alpha
+		snap["alpha"] = maxi(score - delta, -T.VALUE_INFINITE)
+		delta += 44 * delta / 128
+		snap["delta"] = delta
+		reductions.set_root_delta(maxi(int(snap["beta"]) - int(snap["alpha"]), 1))
+		return true
+	if score >= beta:
+		snap["alpha"] = maxi(beta - delta, alpha)
+		snap["beta"] = mini(score + delta, T.VALUE_INFINITE)
+		delta += 44 * delta / 128
+		snap["delta"] = delta
+		reductions.set_root_delta(maxi(int(snap["beta"]) - int(snap["alpha"]), 1))
+		return true
+	return false
+
+
+func _id_restore_if_stopped(snap: Dictionary) -> bool:
+	if not _should_stop():
+		return false
+	# Discard mid-iteration root updates; keep last complete iteration.
+	best_move = _stable_best if _stable_best != T.MOVE_NONE else int(snap["pre_best"])
+	best_score = _stable_score if _stable_best != T.MOVE_NONE else int(snap["pre_score"])
+	pv = _stable_pv if _stable_best != T.MOVE_NONE else snap["pre_pv"]
+	return true
+
+
+func _id_commit_depth(depth: int, score: int, st: Dictionary, node_limit: int) -> bool:
+	if score != T.VALUE_NONE:
+		st["avg_score"] = score
+		best_score = score
+		if best_move != int(st["previous_iteration_best"]):
+			st["last_best_move_depth"] = depth
+			st["previous_iteration_best"] = best_move
+		st["total_best_move_changes"] = float(st["total_best_move_changes"]) + float(_root_best_move_changes)
+		var iter_values: PackedInt32Array = st["iter_values"]
+		var iter_index: int = int(st["iter_index"])
+		var previous_iter_value: int = iter_values[iter_index]
+		iter_values[iter_index] = score
+		st["iter_values"] = iter_values
+		st["iter_index"] = (iter_index + 1) & 3
+		_commit_iteration(depth)
+		_emit_iteration_info(depth)
+		if time_manager != null and time_manager.use_time_management():
+			time_manager.update_after_iteration({
+				"best_previous_average": int(st["previous_search_average"]),
+				"best_value": score,
+				"iter_value": previous_iter_value,
+				"depth": depth,
+				"last_best_move_depth": int(st["last_best_move_depth"]),
+				"best_move_changes": float(st["total_best_move_changes"]),
+				"best_effort_nodes": int(root_moves[0].effort) if not root_moves.is_empty() else 0,
+				"nodes": nodes,
+				"threads": 1,
+			})
+	if node_limit > 0 and nodes >= node_limit:
+		if _stop_reason.is_empty():
+			_stop_reason = "nodes"
+		return true
+	# Soft stop after completing this iteration.
+	if time_manager != null and time_manager.past_optimum() and depth >= 1:
+		if _stop_reason.is_empty():
+			_stop_reason = "movetime" if time_manager.movetime_ms > 0 else "time"
+		return true
+	return false
+
+
+func _finish_search_result() -> Dictionary:
 	_finalize_bestmove_or_fallback()
 	if time_manager != null and _from_complete_iteration:
 		time_manager.commit_search_score(best_score)
 	return _result_dict()
 
+
+func _maybe_yield(force: bool = false):
+	if not yield_cb.is_valid():
+		return
+	var now: int = Time.get_ticks_msec()
+	if not force and (now - _last_yield_msec) < yield_interval_ms:
+		return
+	_last_yield_msec = now
+	await yield_cb.call()
 
 func _set_root_optimism(average: int) -> void:
 	if evaluator == null:
@@ -316,49 +429,94 @@ func _search_root(depth: int, alpha: int, beta: int) -> int:
 	## RootMove counterpart of upstream search<Root>. Root moves are deliberately
 	## not yielded by MovePicker: their PV, score history and stable ordering are
 	## persistent state across iterative deepening.
-	if _maybe_check_stop():
-		return alpha
-	if root_moves.is_empty():
-		return T.mated_in(0) if (pos.checkers()[0] != 0 or pos.checkers()[1] != 0) else T.VALUE_DRAW
-	var alpha0 := alpha
-	var best_value := -T.VALUE_INFINITE
-	var move_count := 0
+	var ctx: Dictionary = _search_root_open(depth, alpha, beta)
+	if bool(ctx.get("done", false)):
+		return int(ctx["value"])
 	for root_move in root_moves:
-		var move: int = root_move.move()
-		if move == T.MOVE_NONE or not pos.legal(move):
-			continue
-		move_count += 1
-		var before := nodes
-		_do_move_synced(move)
-		var value: int
-		if move_count == 1:
+		var step: Dictionary = _search_root_step(root_move, ctx)
+		if bool(step.get("return", false)):
+			return int(step["value"])
+	return _search_root_close(ctx)
+
+
+func _search_root_async(depth: int, alpha: int, beta: int):
+	var ctx: Dictionary = _search_root_open(depth, alpha, beta)
+	if bool(ctx.get("done", false)):
+		return int(ctx["value"])
+	for root_move in root_moves:
+		var step: Dictionary = _search_root_step(root_move, ctx)
+		if bool(step.get("return", false)):
+			return int(step["value"])
+		if not bool(step.get("skipped", false)):
+			await _maybe_yield(false)
+			if _should_stop():
+				return int(ctx["alpha"])
+	return _search_root_close(ctx)
+
+
+func _search_root_open(depth: int, alpha: int, beta: int) -> Dictionary:
+	if _maybe_check_stop():
+		return {"done": true, "value": alpha}
+	if root_moves.is_empty():
+		var v: int = T.mated_in(0) if (pos.checkers()[0] != 0 or pos.checkers()[1] != 0) else T.VALUE_DRAW
+		return {"done": true, "value": v}
+	return {
+		"done": false,
+		"depth": depth,
+		"alpha": alpha,
+		"beta": beta,
+		"alpha0": alpha,
+		"best_value": -T.VALUE_INFINITE,
+		"move_count": 0,
+	}
+
+
+func _search_root_step(root_move, ctx: Dictionary) -> Dictionary:
+	var move: int = root_move.move()
+	if move == T.MOVE_NONE or not pos.legal(move):
+		return {"skipped": true}
+	var depth: int = int(ctx["depth"])
+	var alpha: int = int(ctx["alpha"])
+	var beta: int = int(ctx["beta"])
+	var alpha0: int = int(ctx["alpha0"])
+	ctx["move_count"] = int(ctx["move_count"]) + 1
+	var move_count: int = int(ctx["move_count"])
+	var before := nodes
+	_do_move_synced(move)
+	var value: int
+	if move_count == 1:
+		value = -_search(NODE_PV, depth - 1, -beta, -alpha, 1, false)
+	else:
+		value = -_search(NODE_NON_PV, depth - 1, -(alpha + 1), -alpha, 1, true)
+		if value > alpha and value < beta:
 			value = -_search(NODE_PV, depth - 1, -beta, -alpha, 1, false)
-		else:
-			value = -_search(NODE_NON_PV, depth - 1, -(alpha + 1), -alpha, 1, true)
-			if value > alpha and value < beta:
-				value = -_search(NODE_PV, depth - 1, -beta, -alpha, 1, false)
-		var child_pv: PackedInt32Array = _pv_stack[1].duplicate()
-		_undo_move_synced(move)
-		var searched_nodes: int = maxi(0, nodes - before)
-		root_move.effort += searched_nodes
-		_root_effort_by_move[move] = int(_root_effort_by_move.get(move, 0)) + searched_nodes
-		if _should_stop():
-			return alpha
-		if value > best_value:
-			best_value = value
-		if move_count == 1 or value > alpha:
-			root_move.set_score(value, alpha0, beta, child_pv, seldepth, searched_nodes)
-			if value > alpha:
-				if best_move != T.MOVE_NONE and best_move != move:
-					_root_best_move_changes += 1
-				best_move = move
-				pv = root_move.pv.duplicate()
-				alpha = value
-				if alpha >= beta:
-					break
-		else:
-			root_move.score = -T.VALUE_INFINITE
-	return best_value if best_value != -T.VALUE_INFINITE else alpha
+	var child_pv: PackedInt32Array = _pv_stack[1].duplicate()
+	_undo_move_synced(move)
+	var searched_nodes: int = maxi(0, nodes - before)
+	root_move.effort += searched_nodes
+	_root_effort_by_move[move] = int(_root_effort_by_move.get(move, 0)) + searched_nodes
+	if _should_stop():
+		return {"return": true, "value": alpha}
+	if value > int(ctx["best_value"]):
+		ctx["best_value"] = value
+	if move_count == 1 or value > alpha:
+		root_move.set_score(value, alpha0, beta, child_pv, seldepth, searched_nodes)
+		if value > alpha:
+			if best_move != T.MOVE_NONE and best_move != move:
+				_root_best_move_changes += 1
+			best_move = move
+			pv = root_move.pv.duplicate()
+			ctx["alpha"] = value
+			if value >= beta:
+				return {"return": true, "value": _search_root_close(ctx)}
+	else:
+		root_move.score = -T.VALUE_INFINITE
+	return {}
+
+
+func _search_root_close(ctx: Dictionary) -> int:
+	var best_value: int = int(ctx["best_value"])
+	return best_value if best_value != -T.VALUE_INFINITE else int(ctx["alpha"])
 
 
 func request_stop() -> void:

@@ -6,7 +6,7 @@ extends RefCounted
 ##   engine.start_search({"movetime_ms": 1200})
 ## Supported keys (Dictionary or these fields): movetime_ms/movetime,
 ## wtime, btime, winc, binc, movestogo, move_overhead_ms, depth, nodes,
-## infinite, ponder, sync.
+## infinite, ponder, sync, cooperative.
 
 var depth: int = 0
 var nodes: int = 0
@@ -22,3 +22,6 @@ var move_overhead_ms: int = 10
 ## When true, start_search blocks until done (GUT / smoke / tools).
 ## null / unset → async (game-default).
 var sync = null
+## When true, run as a main-thread coroutine with frame yields (web / tests).
+## Ignored if sync is true. Desktop game-default remains a background Thread.
+var cooperative: bool = false
