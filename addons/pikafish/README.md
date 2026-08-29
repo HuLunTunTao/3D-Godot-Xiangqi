@@ -113,10 +113,14 @@ engine.stop_search()
 
 Dictionary and `PikafishSearchLimits` both accept: `movetime_ms` (or `movetime`),
 `wtime`/`btime`, `winc`/`binc`, `movestogo`, `depth`, `nodes`, `infinite`,
-`ponder`, `sync`.
+`ponder`, `sync`, `cooperative`.
 
-- **Default is async** (background `Thread`; signals via `call_deferred` on main).
-- Pass `sync: true` only for GUT / smoke / tools that must block.
+- **Default is async**: background `Thread` on desktop/editor; on web (no
+  `Thread`), a main-thread coroutine that yields to the scene tree between
+  iterative-deepening depths and root moves so tweens/HUD/input stay alive.
+- Pass `sync: true` only for GUT / smoke / tools that must block. Do **not**
+  set `sync: true` from the game layer (including web).
+- Tests may pass `cooperative: true` to exercise the web yield path off-web.
 - Soft time (`optimum` / movetime): finish the current ID iteration, then stop.
 - Hard time / nodes / `stop_search`: abort ASAP; result is the **last complete
   iteration** PV. If depth 1 never finished, a legal fallback move is returned

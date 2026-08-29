@@ -285,6 +285,7 @@ func test_result_from_last_complete_iteration_under_movetime() -> void:
 
 func test_default_start_search_is_async() -> void:
 	var e = _make_engine()
+	assert_false(e.uses_cooperative_search({"depth": 2}), "desktop GUT must keep Thread search")
 	assert_eq(e.start_search({"depth": 2}), OK)
 	assert_true(e.is_searching() or e._last_result != null)
 	# If still searching, wait for completion.

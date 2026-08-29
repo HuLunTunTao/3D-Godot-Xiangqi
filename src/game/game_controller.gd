@@ -174,12 +174,13 @@ func _after_position_change() -> void:
 
 
 func _start_ai_search() -> void:
-	var limits := {"movetime_ms": ai_time_ms, "depth": ai_depth}
-	if OS.has_feature("web"):
-		limits["sync"] = true
-		await get_tree().process_frame
-		await get_tree().process_frame
-	engine.start_search(limits)
+	engine.start_search(_ai_search_limits())
+
+
+func _ai_search_limits() -> Dictionary:
+	## Web cooperative search is selected inside PikafishEngine (no Thread, no
+	## sync:true). Desktop/editor keep the background Thread. NNUE limits unchanged.
+	return {"movetime_ms": ai_time_ms, "depth": ai_depth}
 
 
 func _on_best_move_found(result) -> void:

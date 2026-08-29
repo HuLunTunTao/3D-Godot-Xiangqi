@@ -76,6 +76,9 @@ var _search_gen: int = 0
 ## Raw result written by the search thread before call_deferred finish.
 var _thread_raw: Dictionary = {}
 var _finish_emitted_gen: int = -1
+## Main-thread cooperative search (web): a Node pump owns the coroutine.
+var _coop_pump: Node = null
+var _coop_jobs: int = 0
 
 
 func initialize(cfg = null) -> Error:
@@ -123,6 +126,7 @@ func shutdown() -> void:
 		return
 	stop_search()
 	_search_gen += 1  # invalidate any pending deferred finishes
+	_free_coop_pump()
 	if _async_worker != null:
 		_async_worker.stop()
 		_async_worker = null
@@ -439,6 +443,8 @@ func start_search(limits) -> Error:
 	## Also accepts wtime/btime/winc/binc/movestogo/move_overhead_ms, depth,
 	## nodes, infinite, ponder. Clock controls use dynamic soft/hard time bounds.
 	## Pass sync:true only for tests/tools that must block the caller.
+	## Web (single-thread export) uses a main-thread coroutine with frame yields;
+	## desktop/editor keep a background Thread. Do not pass sync:true from the game.
 	if not _initialized:
 		return ERR_UNCONFIGURED
 	if _searching:
@@ -457,6 +463,8 @@ func start_search(limits) -> Error:
 	packed["fen"] = _pos.get_fen()
 	packed["_gen"] = gen
 	packed["_position_revision"] = _position_revision
+	if typeof(limits) == TYPE_DICTIONARY and limits.has("yield_cb"):
+		packed["yield_cb"] = limits["yield_cb"]
 	var run_sync: bool = bool(packed.get("sync", false))
 
 	if run_sync:
@@ -464,6 +472,8 @@ func start_search(limits) -> Error:
 		raw["position_revision"] = int(packed["_position_revision"])
 		_finish_search(raw, gen)
 		return OK
+	if _should_use_cooperative(packed):
+		return _start_cooperative_search(packed, gen)
 	_search_thread = Thread.new()
 	_search_thread.start(_search_thread_main.bind(packed, gen))
 	return OK
@@ -472,6 +482,8 @@ func start_search(limits) -> Error:
 func stop_search() -> void:
 	## Idempotent. Signals the worker, joins the thread, and delivers the last
 	## complete-iteration result (or legal fallback) on the calling thread when possible.
+	## Cooperative (web) search cannot join; the in-flight coroutine stops at the
+	## next yield / stop check and then emits on the main thread.
 	_search_stop = true
 	if _worker != null:
 		_worker.request_stop()
@@ -480,6 +492,8 @@ func stop_search() -> void:
 		var gen: int = _search_gen
 		if not _thread_raw.is_empty():
 			_finish_search(_thread_raw, gen)
+		elif _coop_jobs > 0:
+			pass
 		else:
 			_searching = false
 
@@ -502,6 +516,7 @@ func _normalize_limits(limits) -> Dictionary:
 	var movestogo := 0
 	var move_overhead_ms := 10
 	var sync_opt = null
+	var cooperative := false
 
 	if limits != null:
 		if typeof(limits) == TYPE_DICTIONARY:
@@ -528,6 +543,7 @@ func _normalize_limits(limits) -> Dictionary:
 					binc = int(inc[1]) if inc.size() > 1 else binc
 			if limits.has("sync"):
 				sync_opt = bool(limits["sync"])
+			cooperative = bool(limits.get("cooperative", false))
 		else:
 			depth = limits.depth
 			nodes_lim = limits.nodes
@@ -546,6 +562,7 @@ func _normalize_limits(limits) -> Dictionary:
 				binc = int(limits.inc_ms[1])
 			if limits.sync != null:
 				sync_opt = bool(limits.sync)
+			cooperative = bool(limits.cooperative)
 
 	var has_time := movetime_ms > 0 or wtime > 0 or btime > 0 or infinite
 	# Default depth when caller only asks for time/nodes: deepen until limit.
@@ -573,6 +590,7 @@ func _normalize_limits(limits) -> Dictionary:
 		"movestogo": movestogo,
 		"move_overhead_ms": move_overhead_ms,
 		"sync": run_sync,
+		"cooperative": cooperative,
 	}
 
 
@@ -592,28 +610,101 @@ func _search_thread_main(packed: Dictionary, gen: int) -> void:
 
 
 func _run_search_job(packed: Dictionary, on_thread: bool) -> Dictionary:
-	var depth: int = int(packed.get("depth", 4))
-	var nodes_lim: int = int(packed.get("nodes", 0))
+	var worker = _setup_search_worker(packed, on_thread, on_thread)
+	var raw: Dictionary = worker.search(int(packed.get("depth", 4)), int(packed.get("nodes", 0)))
+	return _decorate_search_raw(raw, worker)
+
+
+func uses_cooperative_search(limits = null) -> bool:
+	## Web always cooperative unless sync:true. Tests may pass cooperative:true.
+	if limits == null:
+		return OS.has_feature("web")
+	var packed: Dictionary = _normalize_limits(limits)
+	if typeof(limits) == TYPE_DICTIONARY and limits.has("yield_cb"):
+		packed["yield_cb"] = limits["yield_cb"]
+	return _should_use_cooperative(packed)
+
+
+func _should_use_cooperative(packed: Dictionary) -> bool:
+	if bool(packed.get("sync", false)):
+		return false
+	if OS.has_feature("web"):
+		return true
+	if bool(packed.get("cooperative", false)):
+		return true
+	var cb = packed.get("yield_cb", null)
+	return typeof(cb) == TYPE_CALLABLE and cb.is_valid()
+
+
+func _start_cooperative_search(packed: Dictionary, gen: int) -> Error:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null or tree.root == null:
+		var raw: Dictionary = _run_search_job(packed, false)
+		raw["position_revision"] = int(packed.get("_position_revision", -1))
+		_finish_search(raw, gen)
+		return OK
+	var pump := _CoopSearchPump.new()
+	pump.name = "PikafishCoopSearch_%d" % gen
+	pump.job = _cooperative_search_main.bind(packed, gen)
+	_coop_pump = pump
+	tree.root.add_child(pump)
+	return OK
+
+
+func _cooperative_search_main(packed: Dictionary, gen: int) -> void:
+	_coop_jobs += 1
+	var raw: Dictionary = await _run_search_job_async(packed)
+	raw["position_revision"] = int(packed.get("_position_revision", -1))
+	_thread_raw = raw
+	_finish_search(raw, gen)
+	_coop_jobs = maxi(_coop_jobs - 1, 0)
+
+
+func _run_search_job_async(packed: Dictionary):
+	var worker = _setup_search_worker(packed, true, false)
+	var cb = packed.get("yield_cb", null)
+	if typeof(cb) == TYPE_CALLABLE and cb.is_valid():
+		worker.yield_cb = cb
+	else:
+		worker.yield_cb = _default_coop_yield
+	var raw: Dictionary = await worker.search_async(
+		int(packed.get("depth", 4)), int(packed.get("nodes", 0))
+	)
+	return _decorate_search_raw(raw, worker)
+
+
+func _default_coop_yield() -> void:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree != null:
+		await tree.process_frame
+
+
+func _free_coop_pump() -> void:
+	if _coop_pump != null and is_instance_valid(_coop_pump):
+		_coop_pump.queue_free()
+	_coop_pump = null
+
+
+func _setup_search_worker(packed: Dictionary, clone_pos: bool, defer_info: bool):
 	var fen: String = str(packed.get("fen", ""))
 	var gen: int = int(packed.get("_gen", -1))
 	var revision: int = int(packed.get("_position_revision", -1))
 	var worker = SearchWorkerScript.new()
 	_worker = worker
-	if on_thread:
-		var thread_pos = PositionScript.new()
-		thread_pos.set_fen(fen)
-		worker.pos = thread_pos
+	if clone_pos:
+		var search_pos = PositionScript.new()
+		search_pos.set_fen(fen)
+		worker.pos = search_pos
 	else:
 		worker.pos = _pos
 	worker.tt = _tt
-	# Reuse deep history across searches (avoid re-filling ~80 MiB each start).
 	if _history == null:
 		_history = preload("res://addons/pikafish/search/history.gd").new()
 	worker.history = _history
+	var job_gen: int = gen
 	worker.external_stop_cb = func() -> bool:
-		return _search_stop
-	# Per-iteration info → main thread via call_deferred when on worker thread.
-	if on_thread:
+		return _search_stop or job_gen != _search_gen
+	if defer_info:
 		worker.info_cb = func(info_dict: Dictionary) -> void:
 			call_deferred("_emit_search_info", info_dict, false, gen, revision)
 	else:
@@ -626,8 +717,8 @@ func _run_search_job(packed: Dictionary, on_thread: bool) -> Dictionary:
 		worker.evaluator = NnueEvaluatorScript.new(loader, features)
 	else:
 		worker.evaluator = MaterialEvaluatorScript.new()
-		# Defensive fallback for callers that invoke an incompletely initialized facade.
 		eval_mode = ConfigScript.EVALUATION_MATERIAL
+	worker.set_meta("eval_mode", eval_mode)
 	if config != null:
 		worker.enable_probcut = config.enable_probcut
 		worker.enable_singular = config.enable_singular
@@ -637,11 +728,16 @@ func _run_search_job(packed: Dictionary, on_thread: bool) -> Dictionary:
 	worker.time_manager = tm
 	if _search_stop:
 		worker.request_stop()
-	var raw: Dictionary = worker.search(depth, nodes_lim)
+	return worker
+
+
+func _decorate_search_raw(raw: Dictionary, worker) -> Dictionary:
+	var eval_mode = worker.get_meta("eval_mode", ConfigScript.EVALUATION_NNUE)
 	raw["evaluation_mode"] = eval_mode
 	if _search_stop and str(raw.get("stop_reason", "")) != "stop":
 		raw["stop_reason"] = "stop"
-	raw["time_ms"] = tm.elapsed_ms()
+	var tm = worker.time_manager
+	raw["time_ms"] = tm.elapsed_ms() if tm != null else 0
 	raw["elapsed_ms"] = raw["time_ms"]
 	return raw
 
@@ -876,3 +972,14 @@ func _run_canary(gpu) -> Dictionary:
 		"ok": bad == 0,
 		"detail": "checked=%d bad=%d" % [idxs.size(), bad],
 	}
+
+
+class _CoopSearchPump extends Node:
+	## Owns a main-thread search coroutine so `await process_frame` keeps running
+	## after `start_search` returns. Do not use Thread on web exports.
+	var job: Callable
+
+	func _ready() -> void:
+		if job.is_valid():
+			await job.call()
+		queue_free()
