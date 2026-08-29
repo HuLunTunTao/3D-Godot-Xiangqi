@@ -85,6 +85,10 @@ func _boot_game() -> bool:
 	if controller.boot_engine(network_dir) != OK:
 		hud.show_loading("无法开始", "引擎初始化失败")
 		return false
+	if OS.has_feature("web"):
+		hud.show_loading("正在准备", XiangqiGameController.STATUS_WARMING_SEARCH)
+		await get_tree().process_frame
+		await controller.warm_search_tables()
 	hud.hide_loading()
 	hud.maybe_show_homescreen_hint()
 	return true

@@ -116,8 +116,12 @@ Dictionary and `PikafishSearchLimits` both accept: `movetime_ms` (or `movetime`)
 `ponder`, `sync`, `cooperative`.
 
 - **Default is async**: background `Thread` on desktop/editor; on web (no
-  `Thread`), a main-thread coroutine that yields to the scene tree between
-  iterative-deepening depths and root moves so tweens/HUD/input stay alive.
+  `Thread`), a main-thread coroutine that yields to the scene tree about once
+  per frame (~16ms) — between iterative-deepening depths, after root moves,
+  **and inside** the recursive PV/qsearch tree at the stop-check cadence — so
+  tweens/HUD/input stay alive. Web boot also warms deep history tables while
+  the loading overlay is up (`正在准备棋力…`) so the first think does not
+  hitch on ~80 MiB of `PackedInt32Array` fill.
 - Pass `sync: true` only for GUT / smoke / tools that must block. Do **not**
   set `sync: true` from the game layer (including web).
 - Tests may pass `cooperative: true` to exercise the web yield path off-web.
