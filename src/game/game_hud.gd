@@ -8,9 +8,11 @@ signal undo_requested
 signal flip_requested
 signal reset_view_requested
 signal resign_requested
+signal external_requested(config: Dictionary)
 
 const UiFont = preload("res://assets/fonts/SourceHanSansCN-Regular.otf")
 const LoaderScript = preload("res://src/game/nnue_web_loader.gd")
+const StatusPanelScene = preload("res://src/game/status_panel.tscn")
 const RED_TINT := Color("b66d68")
 const MUTED := Color("aab4ba")
 const HOMESCREEN_HINT_STAMP := "user://web_homescreen_hint_dismissed"
@@ -34,20 +36,36 @@ var load_detail_label: Label
 var load_bar: ProgressBar
 var homescreen_hint: Control
 var status_label: Label
-var player_label: Label
+var red_player_label: Label
+var black_player_label: Label
 var clock_label: Label
 var depth_label: Label
+var external_meta_label: Label
+var external_turn_label: Label
+var external_connection_label: Button
+var external_endpoint_label: Label
 var moves_label: RichTextLabel
 var color_option: OptionButton
 var human_time: SpinBox
 var ai_preset: OptionButton
 var ai_time: SpinBox
 var ai_depth: SpinBox
+var mode_option: OptionButton
+var external_settings: VBoxContainer
+var external_host: LineEdit
+var external_port: SpinBox
+var external_red_name: LineEdit
+var external_black_name: LineEdit
+var external_latency: SpinBox
+var external_info: LineEdit
 var _gameplay_nodes: Array[Control] = []
+var _local_only_actions: Array[Control] = []
 var _move_open := false
 var _action_open := false
 var _move_tween: Tween
 var _action_tween: Tween
+var _external_connection_details_open := false
+var _external_connection_state := "disconnected"
 
 
 func build(default_human_time: float, default_ai_time_ms: int, default_ai_depth: int) -> void:
@@ -74,10 +92,22 @@ func set_status(text: String, state := "") -> void:
 
 
 func set_game_state(info: Dictionary) -> void:
+	var spectator := bool(info.get("spectator", false))
+	if spectator:
+		clock_label.visible = false
+		depth_label.visible = false
+		external_turn_label.visible = true
+		external_connection_label.visible = true
+		return
+	external_meta_label.visible = false
+	external_turn_label.visible = false
+	external_connection_label.visible = false
 	var human_is_red := int(info.get("human_color", 0)) == 0
 	var side_is_red := int(info.get("side_to_move", 0)) == 0
-	player_label.text = "你：%s　 AI：%s" % ["红方" if human_is_red else "黑方", "黑方" if human_is_red else "红方"]
-	player_label.modulate = RED_TINT if human_is_red else MUTED
+	red_player_label.text = "红方：%s" % ("你" if human_is_red else "AI")
+	black_player_label.text = "黑方：%s" % ("AI" if human_is_red else "你")
+	red_player_label.modulate = RED_TINT
+	black_player_label.modulate = MUTED
 	var state := str(info.get("state", "setup"))
 	clock_label.visible = state == "human_turn"
 	clock_label.text = "本步 %s" % _format_time(float(info.get("human_time_left", 0.0)))
@@ -86,6 +116,65 @@ func set_game_state(info: Dictionary) -> void:
 	if state in ["human_turn", "ai_thinking"]:
 		status_label.text = "%s行棋" % ("红方" if side_is_red else "黑方")
 		status_label.modulate = RED_TINT if side_is_red else Color.WHITE
+
+
+func set_external_presentation(red_name: String, black_name: String, latency_ms: int, info: String) -> void:
+	red_player_label.text = "红方：%s" % red_name
+	black_player_label.text = "黑方：%s" % black_name
+	red_player_label.modulate = RED_TINT
+	black_player_label.modulate = Color("edf1f2")
+	var parts: Array[String] = []
+	if latency_ms >= 0:
+		parts.append("延迟 %d ms" % latency_ms)
+	if not info.strip_edges().is_empty():
+		parts.append(info.strip_edges())
+	external_meta_label.text = " · ".join(parts)
+	external_meta_label.visible = not external_meta_label.text.is_empty()
+
+
+func set_external_turn(actor_name: String, actor_is_red: bool, completed_name: String, think_ms: int, info: String) -> void:
+	external_turn_label.text = "%s 正在思考" % actor_name
+	external_turn_label.modulate = RED_TINT if actor_is_red else Color("edf1f2")
+	var parts: Array[String] = []
+	if not completed_name.is_empty() and think_ms >= 0:
+		parts.append("%s 本步推理 %d ms" % [completed_name, think_ms])
+	if not info.strip_edges().is_empty():
+		parts.append(info.strip_edges())
+	external_meta_label.text = " · ".join(parts)
+	external_meta_label.visible = not external_meta_label.text.is_empty()
+
+
+func set_external_connection(state: String) -> void:
+	_external_connection_state = state
+	var status := "未连接"
+	match state:
+		"connected": status = "已连接"
+		"connecting", "reconnecting": status = "正在连接"
+	external_connection_label.text = "观战连接：%s  %s" % [status, "▾" if _external_connection_details_open else "▸"]
+	external_connection_label.modulate = MUTED if state == "connected" else RED_TINT
+
+
+func set_external_endpoint(host: String, port: int) -> void:
+	external_endpoint_label.text = "服务器：%s:%d" % [host, port]
+
+
+func _toggle_external_connection_details() -> void:
+	_external_connection_details_open = not _external_connection_details_open
+	external_endpoint_label.visible = _external_connection_details_open
+	set_external_connection(_external_connection_state)
+	call_deferred("_relayout")
+
+
+func set_external_result(result: String, detail: String) -> void:
+	external_turn_label.text = "对局结束" if result == "finished" else "对局服务异常"
+	external_turn_label.modulate = MUTED if result == "finished" else RED_TINT
+	external_meta_label.text = detail
+	external_meta_label.visible = not detail.is_empty()
+
+
+func set_spectator_mode(enabled: bool) -> void:
+	for node in _local_only_actions:
+		node.disabled = enabled
 
 
 func set_clock(seconds: float) -> void:
@@ -129,29 +218,20 @@ func show_setup() -> void:
 
 
 func build_status(root: Control) -> void:
-	status_panel = PanelContainer.new()
+	status_panel = StatusPanelScene.instantiate()
 	status_panel.add_theme_stylebox_override("panel", panel_style())
 	root.add_child(status_panel)
 	_gameplay_nodes.append(status_panel)
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 3)
-	status_panel.add_child(box)
-	status_label = Label.new()
-	status_label.text = "准备开始"
-	status_label.add_theme_font_size_override("font_size", 21)
-	box.add_child(status_label)
-	player_label = Label.new()
-	player_label.text = "你：—　 AI：—"
-	player_label.add_theme_font_size_override("font_size", 15)
-	box.add_child(player_label)
-	clock_label = Label.new()
-	clock_label.text = "本步 01:00"
-	clock_label.add_theme_font_size_override("font_size", 17)
-	box.add_child(clock_label)
-	depth_label = Label.new()
-	depth_label.text = "AI 思考中 · 深度 —"
-	depth_label.add_theme_font_size_override("font_size", 16)
-	box.add_child(depth_label)
+	status_label = status_panel.get_node("Content/Status") as Label
+	external_turn_label = status_panel.get_node("Content/ExternalTurn") as Label
+	red_player_label = status_panel.get_node("Content/RedPlayer") as Label
+	black_player_label = status_panel.get_node("Content/BlackPlayer") as Label
+	clock_label = status_panel.get_node("Content/Clock") as Label
+	depth_label = status_panel.get_node("Content/Depth") as Label
+	external_meta_label = status_panel.get_node("Content/ExternalMeta") as Label
+	external_connection_label = status_panel.get_node("Content/ExternalConnection") as Button
+	external_endpoint_label = status_panel.get_node("Content/ExternalEndpoint") as Label
+	external_connection_label.pressed.connect(_toggle_external_connection_details)
 
 
 func build_actions(root: Control) -> void:
@@ -170,7 +250,8 @@ func build_actions(root: Control) -> void:
 	game_actions.add_theme_constant_override("v_separation", 8)
 	box.add_child(game_actions)
 	add_menu_button(game_actions, "新对局", show_setup)
-	add_menu_button(game_actions, "撤销回合", func(): undo_requested.emit())
+	var undo := add_menu_button(game_actions, "撤销回合", func(): undo_requested.emit())
+	_local_only_actions.append(undo)
 	box.add_child(separator())
 	box.add_child(menu_section_label("视角"))
 	var camera_actions := GridContainer.new()
@@ -190,6 +271,7 @@ func build_actions(root: Control) -> void:
 		resign_requested.emit()
 	)
 	box.add_child(resign)
+	_local_only_actions.append(resign)
 	action_show_button = Button.new()
 	action_show_button.text = "操作"
 	action_show_button.custom_minimum_size = Vector2(64, 44)
@@ -409,10 +491,15 @@ func build_setup_panel(default_human_time: float, default_ai_time_ms: int, defau
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 28)
 	box.add_child(title)
-	var subtitle := make_hint("人机对战 · 设置会自动保存\n每步计时归零即判负")
+	var subtitle := make_hint("人机对战或本机外部观战 · 设置会自动保存")
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(subtitle)
 	box.add_child(_build_homescreen_hint())
+	mode_option = OptionButton.new()
+	mode_option.add_item("人机对战", 0)
+	mode_option.add_item("外部对局观战（本机 TCP）", 1)
+	mode_option.item_selected.connect(_on_mode_selected)
+	box.add_child(setting_row("对局模式", mode_option))
 	color_option = OptionButton.new()
 	color_option.add_item("执红（先手）", 0)
 	color_option.add_item("执黑（后手）", 1)
@@ -432,6 +519,27 @@ func build_setup_panel(default_human_time: float, default_ai_time_ms: int, defau
 	box.add_child(setting_row("AI 最大思考", ai_time))
 	ai_depth = spin(1, 30, 1, default_ai_depth, " 层")
 	box.add_child(setting_row("AI 最大深度", ai_depth))
+	external_settings = VBoxContainer.new()
+	external_settings.add_theme_constant_override("separation", 8)
+	external_host = LineEdit.new()
+	external_host.text = "127.0.0.1"
+	external_host.placeholder_text = "例如 127.0.0.1"
+	external_settings.add_child(setting_row("外部主机", external_host))
+	external_port = spin(1, 65535, 1, 19190, "")
+	external_settings.add_child(setting_row("端口", external_port))
+	external_red_name = LineEdit.new()
+	external_red_name.text = "红方"
+	external_settings.add_child(setting_row("红方名称", external_red_name))
+	external_black_name = LineEdit.new()
+	external_black_name.text = "黑方"
+	external_settings.add_child(setting_row("黑方名称", external_black_name))
+	external_latency = spin(0, 600000, 1, 0, " ms")
+	external_settings.add_child(setting_row("显示延迟", external_latency))
+	external_info = LineEdit.new()
+	external_info.placeholder_text = "例如：第 3 台引擎 / 调试对局"
+	external_settings.add_child(setting_row("附加信息", external_info))
+	external_settings.visible = false
+	box.add_child(external_settings)
 	var start := Button.new()
 	start.text = "开始对局"
 	start.custom_minimum_size.y = 52
@@ -450,7 +558,22 @@ func _emit_game_started() -> void:
 	setup_panel.visible = false
 	set_action_menu_visible(false)
 	set_gameplay_visible(true)
-	game_started.emit(choices[color_option.selected], human_time.value, int(ai_time.value), int(ai_depth.value))
+	if mode_option.selected == 1:
+		external_requested.emit({
+			"host": external_host.text,
+			"port": int(external_port.value),
+			"red_name": external_red_name.text.strip_edges(),
+			"black_name": external_black_name.text.strip_edges(),
+			"latency_ms": int(external_latency.value),
+			"info": external_info.text.strip_edges(),
+		})
+	else:
+		game_started.emit(choices[color_option.selected], human_time.value, int(ai_time.value), int(ai_depth.value))
+
+
+func _on_mode_selected(index: int) -> void:
+	external_settings.visible = index == 1
+	call_deferred("_relayout")
 
 
 func _on_preset_selected(index: int) -> void:
@@ -508,7 +631,9 @@ func _relayout() -> void:
 	var safe := Rect2(Vector2.ZERO, size)
 	var margin := 16.0
 	status_panel.position = safe.position + Vector2(margin, margin)
-	status_panel.size = Vector2(292.0, 116.0)
+	# Reserve the expanded connection row from the outset. Toggling or changing
+	# long engine/status text must never make the top-left card jump in size.
+	status_panel.size = Vector2(252.0, 129.0)
 	if _action_open:
 		action_panel.position = status_panel.position + Vector2(0.0, status_panel.size.y + 10.0)
 		action_panel.size = Vector2(248.0, 238.0)
@@ -522,7 +647,7 @@ func _relayout() -> void:
 	move_show_button.position = Vector2(safe.end.x - 72.0 - margin, safe.position.y + margin)
 	action_show_button.position = Vector2(status_panel.position.x + status_panel.size.x + 8.0, status_panel.position.y)
 	var setup_width := minf(448.0, safe.size.x - margin * 2.0)
-	var setup_height := minf(552.0, safe.size.y - margin * 2.0)
+	var setup_height := minf(700.0, safe.size.y - margin * 2.0)
 	setup_panel.position = safe.position + Vector2((safe.size.x - setup_width) * 0.5, (safe.size.y - setup_height) * 0.5)
 	setup_panel.size = Vector2(setup_width, setup_height)
 	var end_width := maxf(1.0, minf(360.0, safe.size.x - margin * 2.0))
@@ -616,7 +741,7 @@ func add_button(parent: Container, title: String, callback: Callable, danger := 
 	parent.add_child(button)
 
 
-func add_menu_button(parent: Container, title: String, callback: Callable) -> void:
+func add_menu_button(parent: Container, title: String, callback: Callable) -> Button:
 	var button := Button.new()
 	button.text = title
 	button.custom_minimum_size = Vector2(104, 44)
@@ -627,6 +752,7 @@ func add_menu_button(parent: Container, title: String, callback: Callable) -> vo
 		callback.call()
 	)
 	parent.add_child(button)
+	return button
 
 
 func menu_section_label(text: String) -> Label:

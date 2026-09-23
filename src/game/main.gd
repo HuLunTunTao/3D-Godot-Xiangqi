@@ -8,15 +8,25 @@ const CameraScript = preload("res://src/game/orbit_camera.gd")
 const HudScript = preload("res://src/game/game_hud.gd")
 const AudioScript = preload("res://src/game/game_audio.gd")
 const LoaderScript = preload("res://src/game/nnue_web_loader.gd")
+const ExternalSourceScript = preload("res://src/game/external_game_source.gd")
 const Types = preload("res://addons/pikafish/core/types.gd")
+const MAX_QUEUED_EXTERNAL_SNAPSHOTS := 512
 
 var controller: XiangqiGameController
 var board: XiangqiBoardView
 var camera_rig: XiangqiOrbitCamera
 var hud: XiangqiGameHud
 var game_audio: XiangqiGameAudio
+var external_source
+var _external_presentation := {
+	"red_name": "红方",
+	"black_name": "黑方",
+	"latency_ms": 0,
+	"info": "",
+}
 var selected_square := Types.SQ_NONE
 var selected_targets := PackedInt32Array()
+var _queued_external_snapshots: Array[Dictionary] = []
 
 
 func _ready() -> void:
@@ -38,6 +48,7 @@ func _process(_delta: float) -> void:
 func create_game_nodes() -> void:
 	board = BoardViewScript.new()
 	add_child(board)
+	board.move_animation_finished.connect(_on_board_move_animation_finished)
 	camera_rig = CameraScript.new()
 	camera_rig.current = true
 	camera_rig.fov = 47.0
@@ -45,6 +56,10 @@ func create_game_nodes() -> void:
 	board.set_camera(camera_rig)
 	controller = ControllerScript.new()
 	add_child(controller)
+	external_source = ExternalSourceScript.new()
+	add_child(external_source)
+	external_source.snapshot_received.connect(_on_external_snapshot)
+	external_source.connection_changed.connect(_on_external_connection_changed)
 	game_audio = AudioScript.new()
 	add_child(game_audio)
 
@@ -58,6 +73,7 @@ func create_hud() -> void:
 	hud.flip_requested.connect(camera_rig.flip_view)
 	hud.reset_view_requested.connect(func(): camera_rig.reset_for_color(controller.human_color))
 	hud.resign_requested.connect(controller.resign)
+	hud.external_requested.connect(_start_external_spectator)
 	# The controller may emit status as soon as it receives a move, so connect
 	# only after the HUD instance and its labels have been built.
 	controller.board_changed.connect(_on_board_changed)
@@ -134,10 +150,94 @@ func create_world() -> void:
 
 
 func _start_game(color_choice: String, human_seconds: float, ai_think_ms: int, ai_depth: int) -> void:
+	external_source.stop()
+	_queued_external_snapshots.clear()
 	LoaderScript.request_persistent_storage()
 	clear_selection()
+	hud.set_spectator_mode(false)
 	controller.start_game(color_choice, human_seconds, ai_think_ms, ai_depth)
 	camera_rig.reset_for_color(controller.human_color)
+
+
+func _start_external_spectator(config: Dictionary) -> void:
+	clear_selection()
+	_queued_external_snapshots.clear()
+	_external_presentation = {
+		"red_name": str(config.get("red_name", "红方")),
+		"black_name": str(config.get("black_name", "黑方")),
+		"latency_ms": int(config.get("latency_ms", 0)),
+		"info": str(config.get("info", "")),
+	}
+	hud.set_spectator_mode(true)
+	hud.set_external_presentation(
+		str(_external_presentation.red_name), str(_external_presentation.black_name),
+		int(_external_presentation.latency_ms), str(_external_presentation.info)
+	)
+	controller.start_external_spectator()
+	hud.set_external_endpoint(str(config.get("host", "127.0.0.1")), int(config.get("port", 19190)))
+	hud.set_external_connection("connecting")
+	camera_rig.reset_for_color(Types.COLOR_WHITE)
+	external_source.start(str(config.get("host", "127.0.0.1")), int(config.get("port", 19190)))
+
+
+func _on_external_snapshot(event: Dictionary) -> void:
+	# The producer is never back-pressured by presentation.  Keep every normal
+	# snapshot while the 0.34 s board animation runs; on an extreme backlog,
+	# retain only the newest authoritative FEN and resynchronise cleanly.
+	if _queued_external_snapshots.size() >= MAX_QUEUED_EXTERNAL_SNAPSHOTS:
+		_queued_external_snapshots.clear()
+	_queued_external_snapshots.append(event)
+	_drain_external_snapshots()
+
+
+func _drain_external_snapshots() -> void:
+	if board.is_move_animating() or _queued_external_snapshots.is_empty():
+		return
+	var event: Dictionary = _queued_external_snapshots.pop_front()
+	# Event metadata is optional: configuration values remain visible until the
+	# authoritative producer provides a replacement.
+	for key in ["red_name", "black_name", "latency_ms", "info"]:
+		if event.has(key):
+			_external_presentation[key] = event[key]
+	hud.set_external_presentation(
+		str(_external_presentation.red_name), str(_external_presentation.black_name),
+		int(_external_presentation.latency_ms), str(_external_presentation.info)
+	)
+	var thinking_side := str(event.get("thinking_side", ""))
+	if thinking_side in ["red", "black"]:
+		hud.set_external_turn(
+			str(event.get("thinking_name", "红方" if thinking_side == "red" else "黑方")),
+			thinking_side == "red",
+			str(event.get("completed_name", "")),
+			int(event.get("think_ms", -1)),
+			str(event.get("info", ""))
+		)
+	if controller.apply_external_snapshot(event) == OK:
+		hud.set_moves(controller.move_records())
+		var result := str(event.get("result", "ongoing"))
+		if result in ["finished", "error"]:
+			hud.set_external_result(result, str(event.get("info", "")))
+			if result == "finished":
+				var winner := str(event.get("winner", ""))
+				var winner_name := ""
+				if winner == "red":
+					winner_name = str(event.get("red_name", _external_presentation.red_name))
+				elif winner == "black":
+					winner_name = str(event.get("black_name", _external_presentation.black_name))
+				hud.show_game_end("对局结束" if winner_name.is_empty() else "%s 胜" % winner_name, str(event.get("info", "")))
+	if not board.is_move_animating() and not _queued_external_snapshots.is_empty():
+		call_deferred("_drain_external_snapshots")
+
+
+func _on_board_move_animation_finished() -> void:
+	if controller.state == XiangqiGameController.State.EXTERNAL_SPECTATOR:
+		_drain_external_snapshots()
+
+
+func _on_external_connection_changed(state: String, detail: String) -> void:
+	if controller.state == XiangqiGameController.State.EXTERNAL_SPECTATOR:
+		hud.set_external_connection(state)
+		hud.set_status(detail, "external" if state == "connected" else "error")
 
 
 func _on_board_changed(view, move_info) -> void:

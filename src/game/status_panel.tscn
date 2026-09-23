@@ -1,0 +1,61 @@
+[gd_scene format=3]
+
+[node name="StatusPanel" type="PanelContainer"]
+
+[node name="Content" type="VBoxContainer" parent="."]
+theme_override_constants/separation = 2
+
+[node name="Status" type="Label" parent="Content"]
+theme_override_font_sizes/font_size = 15
+text = "准备开始"
+autowrap_mode = 0
+text_overrun_behavior = 3
+
+[node name="ExternalTurn" type="Label" parent="Content"]
+theme_override_font_sizes/font_size = 16
+text = "等待外部对局"
+autowrap_mode = 0
+text_overrun_behavior = 3
+visible = false
+
+[node name="RedPlayer" type="Label" parent="Content"]
+theme_override_font_sizes/font_size = 11
+text = "红方：—"
+autowrap_mode = 0
+text_overrun_behavior = 3
+
+[node name="BlackPlayer" type="Label" parent="Content"]
+theme_override_font_sizes/font_size = 11
+text = "黑方：—"
+autowrap_mode = 0
+text_overrun_behavior = 3
+
+[node name="Clock" type="Label" parent="Content"]
+theme_override_font_sizes/font_size = 12
+text = "本步 01:00"
+
+[node name="Depth" type="Label" parent="Content"]
+theme_override_font_sizes/font_size = 11
+text = "AI 思考中 · 深度 —"
+
+[node name="ExternalMeta" type="Label" parent="Content"]
+theme_override_colors/font_color = Color(0.666667, 0.705882, 0.729412, 1)
+theme_override_font_sizes/font_size = 10
+autowrap_mode = 0
+text_overrun_behavior = 3
+visible = false
+
+[node name="ExternalConnection" type="Button" parent="Content"]
+theme_override_colors/font_color = Color(0.666667, 0.705882, 0.729412, 1)
+theme_override_font_sizes/font_size = 10
+text = "观战连接：未连接  ▸"
+flat = true
+alignment = 0
+visible = false
+
+[node name="ExternalEndpoint" type="Label" parent="Content"]
+theme_override_colors/font_color = Color(0.666667, 0.705882, 0.729412, 1)
+theme_override_font_sizes/font_size = 10
+autowrap_mode = 0
+text_overrun_behavior = 3
+visible = false

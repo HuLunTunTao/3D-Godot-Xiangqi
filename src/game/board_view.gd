@@ -1,6 +1,8 @@
 class_name XiangqiBoardView
 extends Node3D
 
+signal move_animation_finished
+
 const Types = preload("res://addons/pikafish/core/types.gd")
 const SPACING := 1.2
 const BOARD_WIDTH := 8.0 * SPACING
@@ -11,6 +13,7 @@ var _shadows: Dictionary = {}
 var _markers: Node3D
 var _camera: Camera3D
 var _soft_shadow_material: ShaderMaterial
+var _move_tween: Tween
 
 
 func _ready() -> void:
@@ -65,6 +68,8 @@ func show_position(view, move_info = null) -> void:
 
 
 func animate_move(info) -> void:
+	if _move_tween != null and _move_tween.is_valid():
+		_move_tween.kill()
 	var moving: Node3D = _pieces[info.from]
 	if _pieces.has(info.to):
 		_pieces[info.to].queue_free()
@@ -84,12 +89,22 @@ func animate_move(info) -> void:
 	var shadow_origin := moving_shadow.position if moving_shadow != null else Vector3.ZERO
 	var shadow_destination := square_to_world(info.to) + Vector3.UP * 0.014
 	var tween := create_tween()
+	_move_tween = tween
 	# One continuous curve drives both horizontal travel and the lift.  Unlike
 	# chained tweens, it has no velocity discontinuity at the arc's apex.
 	tween.tween_method(
 		_apply_move_progress.bind(moving, moving_shadow, origin, destination, shadow_origin, shadow_destination, arc_height),
 		0.0, 1.0, 0.34
 	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tween.finished.connect(func():
+		if _move_tween == tween:
+			_move_tween = null
+			move_animation_finished.emit()
+	)
+
+
+func is_move_animating() -> bool:
+	return _move_tween != null and _move_tween.is_valid()
 
 
 func _apply_move_progress(
@@ -247,6 +262,9 @@ func piece_asset(piece: int) -> String:
 
 
 func clear_pieces() -> void:
+	if _move_tween != null and _move_tween.is_valid():
+		_move_tween.kill()
+	_move_tween = null
 	for piece in _pieces.values():
 		piece.queue_free()
 	_pieces.clear()

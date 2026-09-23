@@ -16,7 +16,7 @@ signal game_state_changed(info: Dictionary)
 
 const STATUS_WARMING_SEARCH := "正在准备棋力…"
 
-enum State { SETUP, HUMAN_TURN, AI_THINKING, FINISHED }
+enum State { SETUP, HUMAN_TURN, AI_THINKING, EXTERNAL_SPECTATOR, FINISHED }
 
 var engine = EngineScript.new()
 var state := State.SETUP
@@ -28,6 +28,7 @@ var ai_depth := 12
 var _search_revision := -1
 var _last_search_depth := 0
 var _move_records: Array[Dictionary] = []
+var _external_seq := -1
 
 
 func _ready() -> void:
@@ -93,6 +94,66 @@ func start_game(color_choice: String, time_seconds: float, think_ms: int, depth:
 	_move_records.clear()
 	engine.new_game()
 	_after_position_change()
+
+
+## External spectator events are authoritative snapshots. No search is started
+## and a malformed snapshot leaves the currently displayed position untouched.
+func start_external_spectator() -> void:
+	if not bool(engine.backend_info().get("initialized", false)):
+		return
+	engine.stop_search()
+	_move_records.clear()
+	_external_seq = -1
+	state = State.EXTERNAL_SPECTATOR
+	status_changed.emit("等待外部对局数据…", "external")
+	_emit_game_state()
+
+
+func apply_external_snapshot(event: Dictionary) -> Error:
+	if state != State.EXTERNAL_SPECTATOR:
+		return ERR_UNAVAILABLE
+	var seq := int(event.get("seq", -1))
+	if seq >= 0 and seq <= _external_seq:
+		return OK
+	var target_fen := str(event.get("fen", ""))
+	var uci := str(event.get("last_move", ""))
+	# A producer sends an authoritative post-move FEN.  When it follows our
+	# displayed position, apply its UCI move through the normal engine route so
+	# board_view receives real move_info and plays the complete piece animation.
+	# Exact FEN comparison prevents a stale/missed packet from animating a move
+	# onto the wrong position; such packets fall back to an instant resync.
+	if uci.length() == 4 and engine.get_fen() != target_fen:
+		var move := engine.move_from_uci(uci)
+		if move != Types.MOVE_NONE and _push_recorded_move(move):
+			if engine.get_fen() == target_fen:
+				_finish_external_snapshot(seq)
+				return OK
+			_move_records.clear()
+	var err := engine.set_fen(target_fen)
+	if err != OK:
+		status_changed.emit("外部局面无效，等待下一快照", "error")
+		return err
+	# Reset/reconnect and sequence gaps deliberately do not animate: the FEN is
+	# authoritative and visual correctness matters more than inventing motion.
+	_move_records.clear()
+	if uci.length() == 4:
+		_move_records.append({
+			"turn": int(_move_records.size() / 2) + 1,
+			"side": 1 - engine.get_position_view().side_to_move,
+			"uci": uci,
+			"notation": uci,
+		})
+	_finish_external_snapshot(seq)
+	return OK
+
+
+func _finish_external_snapshot(seq: int) -> void:
+	if seq >= 0:
+		_external_seq = seq
+	if _move_records.size() > 200:
+		_move_records.pop_front()
+	status_changed.emit("外部对局 · %s行棋" % ("红方" if engine.get_position_view().side_to_move == Types.COLOR_WHITE else "黑方"), "external")
+	_emit_game_state()
 
 
 func request_move(from: int, to: int) -> bool:
@@ -240,6 +301,7 @@ func _emit_game_state() -> void:
 		"side_to_move": side_to_move,
 		"human_time_left": human_time_left,
 		"ai_depth": _last_search_depth,
+		"spectator": state == State.EXTERNAL_SPECTATOR,
 	})
 
 
